@@ -20,6 +20,7 @@ function TowersContent() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [regionFilter, setRegionFilter] = useState("all")
+  const [cardFilter, setCardFilter] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +48,7 @@ function TowersContent() {
     fetchTowers()
   }, [])
 
-  // Filter towers based on search and filters
+  // Filter towers based on search, filters, and card selection
   useEffect(() => {
     let filtered = towers
 
@@ -70,13 +71,56 @@ function TowersContent() {
       filtered = filtered.filter((tower) => (tower.region || "") === regionFilter)
     }
 
+    // Apply card filter (overrides status filter when active)
+    if (cardFilter) {
+      switch (cardFilter) {
+        case "online":
+          filtered = filtered.filter((tower) => tower.status === "online")
+          break
+        case "warning":
+          filtered = filtered.filter((tower) => tower.status === "warning")
+          break
+        case "critical":
+          filtered = filtered.filter((tower) => tower.status === "critical")
+          break
+        case "total":
+          // Show all towers (no additional filtering)
+          break
+      }
+    }
+
     setFilteredTowers(filtered)
-  }, [towers, searchQuery, statusFilter, regionFilter])
+  }, [towers, searchQuery, statusFilter, regionFilter, cardFilter])
 
   const totalTowers = towers.length
   const onlineTowers = towers.filter((tower) => tower.status === "online").length
   const warningTowers = towers.filter((tower) => tower.status === "warning").length
   const criticalTowers = towers.filter((tower) => tower.status === "critical").length
+
+  // Handle card click to set filter
+  const handleCardClick = (filterType: string) => {
+    if (cardFilter === filterType) {
+      // If clicking the same card, remove the filter
+      setCardFilter(null)
+      setStatusFilter("all")
+    } else {
+      // Set new card filter and update status filter accordingly
+      setCardFilter(filterType)
+      if (filterType !== "total") {
+        setStatusFilter(filterType)
+      } else {
+        setStatusFilter("all")
+      }
+    }
+  }
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setCardFilter(null)
+    setStatusFilter("all")
+    setRegionFilter("all")
+    setSearchQuery("")
+  }
 
   if (isLoading) {
     return (
@@ -153,41 +197,110 @@ function TowersContent() {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          <GlassMetricCard
-            title="Total Towers"
-            value={totalTowers}
-            icon={Globe}
-            status="success"
-            trend="up"
-            trendValue="+2 this month"
-            delay={0}
-          />
-          <GlassMetricCard
-            title="Online"
-            value={onlineTowers}
-            icon={Radio}
-            status="success"
-            trend="up"
-            trendValue={`${Math.round((onlineTowers / totalTowers) * 100)}% uptime`}
-            delay={1}
-          />
-          <GlassMetricCard
-            title="Warning"
-            value={warningTowers}
-            icon={AlertTriangle}
-            status="warning"
-            trend="neutral"
-            delay={2}
-          />
-          <GlassMetricCard
-            title="Critical"
-            value={criticalTowers}
-            icon={AlertTriangle}
-            status="error"
-            trend="down"
-            delay={3}
-          />
+          <div 
+            onClick={() => handleCardClick("total")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Total Towers"
+              value={totalTowers}
+              icon={Globe}
+              status={cardFilter === "total" ? "success" : "neutral"}
+              trend="up"
+              trendValue="+2 this month"
+              delay={0}
+
+            />
+          </div>
+          
+          <div 
+            onClick={() => handleCardClick("online")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Online"
+              value={onlineTowers}
+              icon={Radio}
+              status={cardFilter === "online" ? "success" : "neutral"}
+              trend="up"
+              trendValue={`${Math.round((onlineTowers / totalTowers) * 100)}% uptime`}
+              delay={1}
+            />
+          </div>
+          
+          <div 
+            onClick={() => handleCardClick("warning")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Warning"
+              value={warningTowers}
+              icon={AlertTriangle}
+              status={cardFilter === "warning" ? "warning" : "neutral"}
+              trend="neutral"
+              delay={2}
+
+            />
+          </div>
+          
+          <div 
+            onClick={() => handleCardClick("critical")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Critical"
+              value={criticalTowers}
+              icon={AlertTriangle}
+              status={cardFilter === "critical" ? "error" : "neutral"}
+              trend="down"
+              delay={3}
+            />
+          </div>
         </motion.div>
+
+        {/* Active Filters Display */}
+        {(cardFilter || statusFilter !== "all" || regionFilter !== "all" || searchQuery) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-white/60 text-sm">Active Filters:</span>
+                {cardFilter && (
+                  <Badge variant="secondary" className="bg-blue-500/20 text-blue-200 border-blue-400/30">
+                    {cardFilter.charAt(0).toUpperCase() + cardFilter.slice(1)}: {filteredTowers.length} towers
+                  </Badge>
+                )}
+                {statusFilter !== "all" && (
+                  <Badge variant="outline" className="bg-white/10 text-white border-white/20">
+                    Status: {statusFilter}
+                  </Badge>
+                )}
+                {regionFilter !== "all" && (
+                  <Badge variant="outline" className="bg-white/10 text-white border-white/20">
+                    Region: {regionFilter}
+                  </Badge>
+                )}
+                {searchQuery && (
+                  <Badge variant="outline" className="bg-white/10 text-white border-white/20">
+                    Search: "{searchQuery}"
+                  </Badge>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearAllFilters}
+                className="text-white/60 hover:text-white hover:bg-white/10"
+              >
+                Clear All
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Search and Filters */}
         <motion.div
@@ -235,6 +348,23 @@ function TowersContent() {
               </select>
             </div>
           </div>
+        </motion.div>
+
+        {/* Results Count */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+          className="flex items-center justify-between"
+        >
+          <p className="text-white/60">
+            Showing {filteredTowers.length} of {totalTowers} towers
+          </p>
+          {filteredTowers.length === 0 && (
+            <p className="text-yellow-400 text-sm">
+              No towers match your current filters
+            </p>
+          )}
         </motion.div>
 
         {/* Towers Grid */}
