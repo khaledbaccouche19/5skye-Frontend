@@ -26,36 +26,56 @@ function DashboardContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // Filter state
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  // Enhanced filter state
+  const [cardFilter, setCardFilter] = useState<string | null>(null)
   const [filteredTowers, setFilteredTowers] = useState<any[]>([])
 
-  // Apply filters when towers or statusFilter changes
+  // Apply filters when towers or cardFilter changes
   useEffect(() => {
-    if (statusFilter) {
-      const filtered = towers.filter(tower => tower.status === statusFilter)
-      setFilteredTowers(filtered)
-    } else {
-      setFilteredTowers(towers)
+    let filtered = towers
+
+    // Apply card filter
+    if (cardFilter) {
+      switch (cardFilter) {
+        case "online":
+          filtered = filtered.filter(tower => tower.status === "online")
+          break
+        case "warning":
+          filtered = filtered.filter(tower => tower.status === "warning")
+          break
+        case "critical":
+          filtered = filtered.filter(tower => tower.status === "critical")
+          break
+        case "total":
+          // Show all towers (no additional filtering)
+          break
+      }
     }
-  }, [towers, statusFilter])
+
+    setFilteredTowers(filtered)
+  }, [towers, cardFilter])
 
   // Calculate metrics based on filtered towers
-  const totalTowers = filteredTowers.length
-  const onlineTowers = filteredTowers.filter(tower => tower.status === "online").length
-  const warningTowers = filteredTowers.filter(tower => tower.status === "warning").length
-  const criticalTowers = filteredTowers.filter(tower => tower.status === "critical").length
+  const totalTowers = towers.length
+  const onlineTowers = towers.filter(tower => tower.status === "online").length
+  const warningTowers = towers.filter(tower => tower.status === "warning").length
+  const criticalTowers = towers.filter(tower => tower.status === "critical").length
   const criticalAlerts = recentAlerts.filter(alert => alert.severity === "critical").length
 
-  // Handle status card clicks
-  const handleStatusCardClick = (status: string | null) => {
-    if (statusFilter === status) {
-      // If clicking the same status, clear the filter
-      setStatusFilter(null)
+  // Handle card click to set filter
+  const handleCardClick = (filterType: string) => {
+    if (cardFilter === filterType) {
+      // If clicking the same card, remove the filter
+      setCardFilter(null)
     } else {
-      // Set new filter
-      setStatusFilter(status)
+      // Set new card filter
+      setCardFilter(filterType)
     }
+  }
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setCardFilter(null)
   }
 
   // Fetch data from real API
@@ -183,10 +203,6 @@ function DashboardContent() {
 
           <div className="flex items-center space-x-4">
             <RealTimeIndicator className="hidden md:flex" />
-
-
-
-
           </div>
         </motion.div>
 
@@ -197,52 +213,90 @@ function DashboardContent() {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          <GlassMetricCard
-            title="Total Towers"
-            value={towers.length}
-            icon={Globe}
-            status="success"
-            trend="up"
-            trendValue="+2 this month"
-            delay={0}
-            onClick={() => handleStatusCardClick(null)}
-            isActive={statusFilter === null}
-            clickable={true}
-          />
-          <GlassMetricCard
-            title="Online Towers"
-            value={towers.filter(tower => tower.status === "online").length}
-            unit=""
-            icon={Radio}
-            status="success"
-            trend="up"
-            trendValue={`${Math.round((towers.filter(tower => tower.status === "online").length / towers.length) * 100)}% uptime`}
-            delay={1}
-            onClick={() => handleStatusCardClick("online")}
-            isActive={statusFilter === "online"}
-            clickable={true}
-          />
-          <GlassMetricCard 
-            title="Warning Towers" 
-            value={towers.filter(tower => tower.status === "warning").length} 
-            icon={AlertTriangle} 
-            status="warning" 
-            delay={2}
-            onClick={() => handleStatusCardClick("warning")}
-            isActive={statusFilter === "warning"}
-            clickable={true}
-          />
-          <GlassMetricCard
-            title="Critical Towers"
-            value={towers.filter(tower => tower.status === "critical").length}
-            icon={AlertTriangle}
-            status="error"
-            delay={2}
-            onClick={() => handleStatusCardClick("critical")}
-            isActive={statusFilter === "warning"}
-            clickable={true}
-          />
+          <div 
+            onClick={() => handleCardClick("total")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Total Towers"
+              value={totalTowers}
+              icon={Globe}
+              status={cardFilter === "total" ? "success" : "neutral"}
+              trend="up"
+              trendValue="+2 this month"
+              delay={0}
+            />
+          </div>
+          
+          <div 
+            onClick={() => handleCardClick("online")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Online Towers"
+              value={onlineTowers}
+              unit=""
+              icon={Radio}
+              status={cardFilter === "online" ? "success" : "neutral"}
+              trend="up"
+              trendValue={`${Math.round((onlineTowers / totalTowers) * 100)}% uptime`}
+              delay={1}
+            />
+          </div>
+          
+          <div 
+            onClick={() => handleCardClick("warning")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard 
+              title="Warning Towers" 
+              value={warningTowers} 
+              icon={AlertTriangle} 
+              status={cardFilter === "warning" ? "warning" : "neutral"} 
+              delay={2}
+            />
+          </div>
+          
+          <div 
+            onClick={() => handleCardClick("critical")}
+            className="cursor-pointer transform transition-all duration-300 hover:scale-105"
+          >
+            <GlassMetricCard
+              title="Critical Towers"
+              value={criticalTowers}
+              icon={AlertTriangle}
+              status={cardFilter === "critical" ? "error" : "neutral"}
+              delay={3}
+            />
+          </div>
         </motion.div>
+
+        {/* Active Filters Display */}
+        {cardFilter && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-white/60 text-sm">Active Filter:</span>
+                <Badge variant="secondary" className="bg-blue-500/20 text-blue-200 border-blue-400/30">
+                  {cardFilter.charAt(0).toUpperCase() + cardFilter.slice(1)}: {filteredTowers.length} towers
+                </Badge>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearAllFilters}
+                className="text-white/60 hover:text-white hover:bg-white/10"
+              >
+                Clear Filter
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Global Tower Map */}
         <motion.div
@@ -261,12 +315,14 @@ function DashboardContent() {
               </motion.div>
               <div>
                 <h2 className="text-xl font-bold text-blue-50">Global Tower Map</h2>
-                <p className="text-sm text-blue-200/70">Click on any tower to view details</p>
+                <p className="text-sm text-blue-200/70">
+                  {cardFilter ? `Showing ${filteredTowers.length} ${cardFilter} towers` : "Click on any tower to view details"}
+                </p>
               </div>
             </div>
             <div className="h-[560px]">
               <CesiumGlobeWrapper 
-                towers={towers} 
+                towers={filteredTowers} 
                 onTowerClick={(tower) => {
                   console.log('Tower clicked on globe:', tower)
                   router.push(`/towers/${tower.id}`)
@@ -274,6 +330,24 @@ function DashboardContent() {
               />
             </div>
           </div>
+        </motion.div>
+
+        {/* Results Count */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+          className="flex items-center justify-between"
+        >
+          <p className="text-white/60">
+            Showing {filteredTowers.length} of {totalTowers} towers
+            {cardFilter && ` (${cardFilter} status)`}
+          </p>
+          {filteredTowers.length === 0 && (
+            <p className="text-yellow-400 text-sm">
+              No towers match your current filter
+            </p>
+          )}
         </motion.div>
 
         {/* Tower Status Overview */}
@@ -284,7 +358,14 @@ function DashboardContent() {
           className="w-full mb-8"
         >
           <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
-            <h2 className="text-xl font-bold text-slate-50 mb-6">Tower Status</h2>
+            <h2 className="text-xl font-bold text-slate-50 mb-6">
+              Tower Status
+              {cardFilter && (
+                <span className="text-blue-300 ml-2">
+                  ({cardFilter.charAt(0).toUpperCase() + cardFilter.slice(1)})
+                </span>
+              )}
+            </h2>
             <div className="space-y-4 max-h-96 overflow-y-auto">
               {filteredTowers.slice(0, 6).map((tower, index) => (
                 <motion.div
@@ -312,166 +393,136 @@ function DashboardContent() {
                       {tower.status.toUpperCase()}
                     </Badge>
                   </div>
-                  <p className="text-blue-100/80 text-sm mb-3">
+                  <p className="text-sm text-slate-300 mb-2">
                     {tower.location?.city || tower.city || "Unknown Location"}
                   </p>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-blue-100/70">Battery:</span>
-                      <span
-                        className={cn(
-                          "font-medium",
-                          (tower.battery || 0) > 50
-                            ? "text-emerald-400"
-                            : (tower.battery || 0) > 20
-                              ? "text-amber-400"
-                              : "text-red-400",
-                        )}
-                      >
-                        {tower.battery || 0}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-100/70">Temp:</span>
-                      <span className="text-blue-50 font-medium">{tower.temperature || 0}°C</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-100/70">Uptime:</span>
-                      <span className="text-emerald-400 font-medium">{tower.uptime || 0}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-100/70">Load:</span>
-                      <span className="text-blue-50 font-medium">{tower.networkLoad || 0}%</span>
-                    </div>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Use Case: {tower.useCase || "N/A"}</span>
+                    <span>Region: {tower.region || "N/A"}</span>
                   </div>
                 </motion.div>
               ))}
-              <Button
-                variant="outline"
-                className="w-full bg-blue-700/40 backdrop-blur-xl border-blue-300/40 text-white hover:bg-blue-600/50 hover:border-blue-200/50 rounded-2xl transition-all duration-300"
-                size="sm"
-                onClick={() => router.push("/towers")}
-              >
-                View All Towers ({totalTowers})
-              </Button>
+              
+              {filteredTowers.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-slate-400">No towers to display</p>
+                </div>
+              )}
+              
+              {filteredTowers.length > 6 && (
+                <div className="text-center pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/towers')}
+                    className="bg-slate-600/50 border-slate-500/40 text-slate-300 hover:bg-slate-500/60"
+                  >
+                    View All {filteredTowers.length} Towers
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
 
-        {/* Recent Alerts & AI Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-          >
-            <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
-              <div className="flex items-center space-x-3 mb-6">
+        {/* Recent Alerts */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
+          className="w-full mb-8"
+        >
+          <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
+            <h2 className="text-xl font-bold text-slate-50 mb-6">Recent Alerts</h2>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {recentAlerts.slice(0, 5).map((alert, index) => (
                 <motion.div
-                  className="p-3 rounded-2xl bg-gradient-to-r from-slate-600/60 to-slate-500/60"
-                  whileHover={{ rotate: 5, scale: 1.05 }}
+                  key={alert.id}
+                  className="p-4 bg-slate-600/50 backdrop-blur-xl border border-slate-500/40 rounded-2xl"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.9 + index * 0.1, duration: 0.4 }}
                 >
-                  <AlertTriangle className="h-5 w-5 text-slate-200" />
-                </motion.div>
-                <h2 className="text-xl font-bold text-slate-50">Recent Alerts</h2>
-              </div>
-
-              <div className="space-y-4">
-                {recentAlerts.slice(0, 3).map((alert, index) => (
-                  <motion.div
-                    key={alert.id}
-                    className="flex items-start space-x-4 p-4 bg-slate-600/50 backdrop-blur-xl border border-slate-500/40 rounded-2xl hover:bg-slate-500/60 transition-all duration-300"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.9 + index * 0.1, duration: 0.4 }}
-                  >
-                    <div
-                      className={cn(
-                        "w-3 h-3 rounded-full mt-2 shadow-glow",
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-red-50">{alert.title}</h4>
+                    <Badge
+                      variant={
                         alert.severity === "critical"
-                          ? "bg-red-500"
+                          ? "destructive"
                           : alert.severity === "warning"
-                            ? "bg-amber-500"
-                            : "bg-blue-500",
-                      )}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-50 mb-1">{alert.message}</p>
-                      <p className="text-xs text-slate-300/70">
-                        {alert.towerName} • {new Date(alert.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-                <Button
-                  variant="outline"
-                  className="w-full bg-slate-700/40 backdrop-blur-xl border-slate-500/40 text-white hover:bg-slate-600/50 hover:border-blue-200/50 rounded-2xl transition-all duration-300"
-                  size="sm"
-                  onClick={() => router.push("/alerts")}
-                >
-                  View All Alerts
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.0, duration: 0.6 }}
-          >
-            <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
-              <div className="flex items-center space-x-3 mb-6">
-                <motion.div
-                  className="p-3 rounded-2xl bg-gradient-to-r from-slate-600/60 to-slate-500/60"
-                  whileHover={{ rotate: 5, scale: 1.05 }}
-                >
-                  <Brain className="h-5 w-5 text-slate-200" />
+                            ? "secondary"
+                            : "default"
+                      }
+                      className="backdrop-blur-xl"
+                    >
+                      {alert.severity.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-300 mb-2">{alert.description}</p>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Tower: {alert.towerName || "Unknown"}</span>
+                    <span>{new Date(alert.timestamp).toLocaleString()}</span>
+                  </div>
                 </motion.div>
-                <h2 className="text-xl font-bold text-slate-50">AI Insights</h2>
-              </div>
-
-              <div className="space-y-4">
-                {aiInsights.map((insight, index) => (
-                  <motion.div
-                    key={insight.id}
-                    className="p-4 bg-slate-600/50 backdrop-blur-xl border border-slate-500/40 rounded-2xl hover:bg-slate-500/60 transition-all duration-300"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 1.1 + index * 0.1, duration: 0.4 }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge
-                        variant={
-                          insight.urgency === "critical"
-                            ? "destructive"
-                            : insight.urgency === "warning"
-                              ? "secondary"
-                              : "default"
-                        }
-                        className="text-xs"
-                      >
-                        {insight.urgency.toUpperCase()}
-                      </Badge>
-                      <span className="text-xs text-slate-300/70">{insight.confidence}% confidence</span>
-                    </div>
-                    <h4 className="font-medium text-slate-100 mb-1">{insight.prediction}</h4>
-                    <p className="text-xs text-slate-300/70 mb-2">{insight.towerName}</p>
-                    <p className="text-xs text-slate-300/70">{insight.recommendation}</p>
-                  </motion.div>
-                ))}
-                <Button
-                  variant="outline"
-                  className="w-full bg-slate-700/40 backdrop-blur-xl border-slate-500/40 text-white hover:bg-slate-600/50 hover:border-blue-200/50 rounded-2xl transition-all duration-300"
-                  size="sm"
-                  onClick={() => router.push("/ai-insights")}
-                >
-                  View All Insights
-                </Button>
-              </div>
+              ))}
+              
+              {recentAlerts.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-slate-400">No recent alerts</p>
+                </div>
+              )}
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
+
+        {/* AI Insights */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0, duration: 0.6 }}
+          className="w-full mb-8"
+        >
+          <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-400/30">
+                <Brain className="h-6 w-6 text-purple-200" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-50">AI Insights</h2>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {aiInsights.map((insight, index) => (
+                <motion.div
+                  key={insight.id}
+                  className="p-4 bg-slate-600/50 backdrop-blur-xl border border-slate-500/40 rounded-2xl"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 1.1 + index * 0.1, duration: 0.4 }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-purple-50">{insight.prediction}</h4>
+                    <Badge
+                      variant={
+                        insight.urgency === "critical"
+                          ? "destructive"
+                          : insight.urgency === "warning"
+                            ? "secondary"
+                            : "default"
+                      }
+                      className="backdrop-blur-xl"
+                    >
+                      {insight.urgency.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-300 mb-2">{insight.recommendation}</p>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Tower: {insight.towerName}</span>
+                    <span>Confidence: {insight.confidence}%</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       </div>
     </GlassMainLayout>
   )

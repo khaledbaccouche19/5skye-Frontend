@@ -250,120 +250,120 @@ export default function TelemetryPage() {
               <Activity className="h-6 w-6 text-blue-400" />
               <span>Performance Metrics</span>
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Battery & Uptime */}
-              <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-slate-50">
+          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-slate-50">
                     <Battery className="h-5 w-5 text-green-400" />
                     <span>Battery & Uptime</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-slate-200">
-                  <ChartContainer
-                    config={{
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-slate-200">
+              <ChartContainer
+                config={{
                       battery: { label: "Battery (%)", color: "hsl(var(--chart-1))" },
                       uptime: { label: "Uptime (%)", color: "hsl(var(--chart-2))" },
-                    }}
-                    className="h-64"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
+                }}
+                className="h-64"
+              >
+                <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={enhancedTelemetryData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
                         <Area type="monotone" dataKey="battery" stroke="var(--color-battery)" fill="var(--color-battery)" fillOpacity={0.3} />
                         <Area type="monotone" dataKey="uptime" stroke="var(--color-uptime)" fill="var(--color-uptime)" fillOpacity={0.3} />
                       </AreaChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
               {/* Temperature & Response Time */}
-              <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-slate-50">
+          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-slate-50">
                     <Thermometer className="h-5 w-5 text-red-400" />
                     <span>Temperature & Response Time</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-slate-200">
-                  <ChartContainer
-                    config={{
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-slate-200">
+              <ChartContainer
+                config={{
                       temperature: { label: "Temperature (°C)", color: "hsl(var(--chart-3))" },
                       responseTime: { label: "Response Time (ms)", color: "hsl(var(--chart-4))" },
-                    }}
-                    className="h-64"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
+                }}
+                className="h-64"
+              >
+                <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={enhancedTelemetryData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} />
                         <Line type="monotone" dataKey="responseTime" stroke="var(--color-responseTime)" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
               {/* Network Load & Throughput */}
-              <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-slate-50">
+          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-slate-50">
                     <Wifi className="h-5 w-5 text-blue-400" />
                     <span>Network Load & Throughput</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-slate-200">
-                  <ChartContainer
-                    config={{
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-slate-200">
+              <ChartContainer
+                config={{
                       networkLoad: { label: "Network Load (%)", color: "hsl(var(--chart-5))" },
                       throughput: { label: "Throughput (Mbps)", color: "hsl(var(--chart-6))" },
-                    }}
-                    className="h-64"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
+                }}
+                className="h-64"
+              >
+                <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={enhancedTelemetryData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
                         <Line type="monotone" dataKey="networkLoad" stroke="var(--color-networkLoad)" strokeWidth={2} />
                         <Line type="monotone" dataKey="throughput" stroke="var(--color-throughput)" strokeWidth={2} />
                       </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
               {/* Voltage & Bandwidth */}
-              <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-slate-50">
+          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-slate-50">
                     <Zap className="h-5 w-5 text-yellow-400" />
                     <span>Voltage & Bandwidth</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-slate-200">
-                  <ChartContainer
-                    config={{
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-slate-200">
+              <ChartContainer
+                config={{
                       voltage: { label: "Voltage (V)", color: "hsl(var(--chart-7))" },
                       bandwidth: { label: "Bandwidth (%)", color: "hsl(var(--chart-8))" },
-                    }}
-                    className="h-64"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
+                }}
+                className="h-64"
+              >
+                <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={enhancedTelemetryData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="voltage" stroke="var(--color-voltage)" strokeWidth={2} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="voltage" stroke="var(--color-voltage)" strokeWidth={2} />
                         <Line type="monotone" dataKey="bandwidth" stroke="var(--color-bandwidth)" strokeWidth={2} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -465,13 +465,13 @@ export default function TelemetryPage() {
                         <YAxis />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Line type="monotone" dataKey="vibration" stroke="var(--color-vibration)" strokeWidth={2} />
-                        <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
+                    <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
           </div>
         )}
 
