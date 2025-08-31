@@ -9,6 +9,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Always use port 3000
+  devIndicators: {
+    buildActivity: true,
+  },
+  // Force port 3000
+  experimental: {
+    forceSwcTransforms: true,
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

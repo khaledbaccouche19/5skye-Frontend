@@ -19,6 +19,10 @@ export default function NewTowerPage() {
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "success" | "error">("idle")
 
+  // Data preview state
+  const [fetchedData, setFetchedData] = useState<any>(null)
+  const [dataFetchError, setDataFetchError] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     name: "",
     status: "ONLINE",
@@ -151,6 +155,8 @@ export default function NewTowerPage() {
     setIsTestingConnection(true)
     setConnectionStatus("idle")
     setError(null)
+    setFetchedData(null)
+    setDataFetchError(null)
 
     try {
       // Test the connection using ApiClient
@@ -159,6 +165,16 @@ export default function NewTowerPage() {
       if (result.success) {
         setConnectionStatus("success")
         console.log('✅ Connection test successful for:', formData.apiEndpointUrl)
+        
+        // Now fetch the actual data to show in preview
+        try {
+          const data = await ApiClient.fetchTelemetryData(formData.apiEndpointUrl, formData.apiKey)
+          setFetchedData(data)
+          console.log('✅ Fetched telemetry data:', data)
+        } catch (dataError: any) {
+          setDataFetchError(`Connection successful but failed to fetch data: ${dataError.message}`)
+          console.warn('⚠️ Connection test passed but data fetch failed:', dataError)
+        }
       } else {
         setConnectionStatus("error")
         setError('Connection test failed')
@@ -724,6 +740,27 @@ export default function NewTowerPage() {
               )}
             </div>
           </div>
+
+          {/* Data Preview - Integrated into the form */}
+          {fetchedData && (
+            <div className="mt-6 bg-white/5 border border-white/10 rounded-xl p-4">
+              <h3 className="text-white/80 text-lg mb-3 flex items-center">
+                <Activity className="h-5 w-5 text-purple-400 mr-2" />
+                Fetched Telemetry Data
+              </h3>
+              <div className="overflow-x-auto">
+                <pre className="bg-white/10 border border-white/20 rounded-lg p-4 text-white text-sm max-h-64 overflow-y-auto">
+                  {JSON.stringify(fetchedData, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {dataFetchError && (
+            <div className="mt-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 text-yellow-200 text-sm">
+              <strong>Warning:</strong> {dataFetchError}
+            </div>
+          )}
 
           {/* Submit */}
           <div className="flex justify-end space-x-4 pt-6 border-t border-white/10">

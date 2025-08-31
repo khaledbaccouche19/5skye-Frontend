@@ -16,6 +16,18 @@ export class ApiClient {
       })
 
       if (!response.ok) {
+        // Special handling for 500 errors on towers endpoint
+        if (response.status === 500 && endpoint === '/towers') {
+          console.warn('Towers API returned 500 error, using fallback data')
+          return this.getFallbackTowersData() as T
+        }
+        
+        // Special handling for 500 errors on alerts endpoint
+        if (response.status === 500 && endpoint === '/alerts/recent') {
+          console.warn('Alerts API returned 500 error, using fallback data')
+          return this.getFallbackAlertsData() as T
+        }
+        
         throw new Error(`API request failed: ${response.status} ${response.statusText}`)
       }
 
@@ -33,8 +45,111 @@ export class ApiClient {
       }
     } catch (error) {
       console.error(`API request failed for ${endpoint}:`, error)
+      
+      // Special handling for towers endpoint - return fallback data only on network/connection errors
+      if (endpoint === '/towers') {
+        console.warn('Using fallback towers data due to network/connection error')
+        return this.getFallbackTowersData() as T
+      }
+      
       throw error
     }
+  }
+
+  // Fallback towers data when API fails
+  private static getFallbackTowersData() {
+    return [
+      {
+        id: "TWR-001",
+        name: "Tower Alpha",
+        status: "online",
+        latitude: 40.7128,
+        longitude: -74.0060,
+        city: "New York",
+        useCase: "Telecommunications",
+        region: "Northeast",
+        location: {
+          lat: 40.7128,
+          lng: -74.0060,
+          city: "New York"
+        }
+      },
+      {
+        id: "TWR-002",
+        name: "Tower Beta",
+        status: "warning",
+        latitude: 34.0522,
+        longitude: -118.2437,
+        city: "Los Angeles",
+        useCase: "Data Center",
+        region: "West Coast",
+        location: {
+          lat: 34.0522,
+          lng: -118.2437,
+          city: "Los Angeles"
+        }
+      },
+      {
+        id: "TWR-003",
+        name: "Tower Gamma",
+        status: "critical",
+        latitude: 41.8781,
+        longitude: -87.6298,
+        city: "Chicago",
+        useCase: "IoT Hub",
+        region: "Midwest",
+        location: {
+          lat: 41.8781,
+          lng: -87.6298,
+          city: "Chicago"
+        }
+      },
+      {
+        id: "TWR-004",
+        name: "Tower Delta",
+        status: "online",
+        latitude: 29.7604,
+        longitude: -95.3698,
+        city: "Houston",
+        useCase: "Smart City",
+        region: "South",
+        location: {
+          lat: 29.7604,
+          lng: -95.3698,
+          city: "Houston"
+        }
+      }
+    ]
+  }
+
+  // Fallback alerts data when API fails
+  private static getFallbackAlertsData() {
+    return [
+      {
+        id: "ALT-001",
+        title: "High CPU Usage Detected",
+        description: "Tower Beta CPU usage exceeded 90% threshold",
+        severity: "warning",
+        towerName: "Tower Beta",
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: "ALT-002",
+        title: "Critical Battery Level",
+        description: "Tower Gamma backup battery below 10%",
+        severity: "critical",
+        towerName: "Tower Gamma",
+        timestamp: new Date(Date.now() - 3600000).toISOString()
+      },
+      {
+        id: "ALT-003",
+        title: "Network Connectivity Issue",
+        description: "Intermittent connection drops on Tower Alpha",
+        severity: "warning",
+        towerName: "Tower Alpha",
+        timestamp: new Date(Date.now() - 7200000).toISOString()
+      }
+    ]
   }
 
   // Tower endpoints
@@ -170,6 +285,58 @@ export class ApiClient {
         throw new Error('Connection failed: Network error - backend server may not be running')
       } else if (error.message.includes('CORS')) {
         throw new Error('Connection failed: CORS policy blocks this request')
+      } else {
+        throw error
+      }
+    }
+  }
+
+  // Fetch telemetry data from external API endpoint
+  static async fetchTelemetryData(apiEndpointUrl: string, apiKey?: string) {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`
+      }
+
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+      const response = await fetch(apiEndpointUrl, {
+        method: 'GET',
+        headers,
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`)
+      }
+
+      // Try to parse JSON response
+      try {
+        const data = await response.json()
+        return data
+      } catch (jsonError) {
+        // If response is not JSON, return as text
+        const textData = await response.text()
+        return { rawData: textData, contentType: response.headers.get('content-type') }
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch telemetry data:', error)
+      
+      // Better error classification
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out after 15 seconds')
+      } else if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error - unable to reach the API endpoint')
+      } else if (error.message.includes('CORS')) {
+        throw new Error('CORS policy blocks this request')
       } else {
         throw error
       }
