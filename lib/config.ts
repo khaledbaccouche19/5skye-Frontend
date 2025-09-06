@@ -8,6 +8,14 @@ export const config = {
     uploadPath: '/upload',
   },
   
+  // Simulator configuration
+  simulator: {
+    baseUrl: process.env.NEXT_PUBLIC_SIMULATOR_URL || 'http://localhost:8080',
+    apiPath: '/api',
+    telemetryEndpoint: '/telemetry/live',
+    towersEndpoint: '/towers/summaries',
+  },
+  
   // Frontend configuration
   frontend: {
     port: process.env.NEXT_PUBLIC_FRONTEND_PORT || 3000,
@@ -31,6 +39,7 @@ export const config = {
 // Helper functions for building URLs
 export const buildUrl = {
   api: (endpoint: string) => `${config.backend.baseUrl}${config.backend.apiPath}${endpoint}`,
+  simulator: (endpoint: string) => `${config.simulator.baseUrl}${config.simulator.apiPath}${endpoint}`,
   model: (modelPath: string) => {
     if (modelPath.startsWith('http://') || modelPath.startsWith('https://')) {
       return modelPath

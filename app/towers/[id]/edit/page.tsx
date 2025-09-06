@@ -20,6 +20,8 @@ export default function EditTowerPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tower, setTower] = useState<any>(null)
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
+  const [connectionMessage, setConnectionMessage] = useState("")
 
   const [formData, setFormData] = useState({
     name: "",
@@ -34,6 +36,8 @@ export default function EditTowerPage() {
     useCase: "",
     region: "",
     lastMaintenance: "",
+    apiEndpointUrl: "",
+    apiKey: "",
     newModelFile: null as File | null,
   })
 
@@ -49,7 +53,7 @@ export default function EditTowerPage() {
         // Populate form with existing data
         setFormData({
           name: towerData.name || "",
-          status: towerData.status || "online",
+          status: towerData.status?.toLowerCase() || "online", // Convert backend uppercase to frontend lowercase
           latitude: towerData.latitude?.toString() || towerData.location?.lat?.toString() || "",
           longitude: towerData.longitude?.toString() || towerData.location?.lng?.toString() || "",
           city: towerData.city || towerData.location?.city || "",
@@ -60,6 +64,8 @@ export default function EditTowerPage() {
           useCase: towerData.useCase || "",
           region: towerData.region || "",
           lastMaintenance: towerData.lastMaintenance ? towerData.lastMaintenance.split('T')[0] : "",
+          apiEndpointUrl: towerData.apiEndpointUrl || "",
+          apiKey: towerData.apiKey || "",
         })
       } catch (err) {
         console.error('Failed to fetch tower:', err)
@@ -79,6 +85,32 @@ export default function EditTowerPage() {
       ...prev,
       [field]: value
     }))
+  }
+
+  const testConnection = async () => {
+    if (!formData.apiEndpointUrl) {
+      setConnectionStatus("error")
+      setConnectionMessage("Please enter an API endpoint URL to test the connection")
+      return
+    }
+
+    setConnectionStatus("testing")
+    setConnectionMessage("Testing connection...")
+
+    try {
+      const result = await ApiClient.testConnection(formData.apiEndpointUrl, formData.apiKey)
+      
+      if (result.success) {
+        setConnectionStatus("success")
+        setConnectionMessage("✅ Connection successful!")
+      } else {
+        setConnectionStatus("error")
+        setConnectionMessage("❌ Connection failed")
+      }
+    } catch (error: any) {
+      setConnectionStatus("error")
+      setConnectionMessage(`❌ ${error.message}`)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,7 +176,7 @@ export default function EditTowerPage() {
       // Convert form data to match backend structure
       const towerData = {
         name: formData.name,
-        status: formData.status,
+        status: formData.status.toUpperCase(), // Convert to uppercase for backend validation
         latitude: parseFloat(formData.latitude),
         longitude: parseFloat(formData.longitude),
         city: formData.city,
@@ -156,6 +188,8 @@ export default function EditTowerPage() {
         region: formData.region,
         lastMaintenance: formData.lastMaintenance || null,
         model3dPath: model3dPath,
+        apiEndpointUrl: formData.apiEndpointUrl || null,
+        apiKey: formData.apiKey || null,
       }
 
       console.log('Updating tower with data:', towerData)
@@ -542,6 +576,89 @@ export default function EditTowerPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Data Source Configuration */}
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <Globe className="h-6 w-6 text-cyan-400" />
+              <h2 className="text-2xl font-bold text-white">Data Source Configuration</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-white/60 text-sm">
+                Configure the external API endpoint where your backend will fetch tower telemetry data from. This is optional and can be configured later.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="apiEndpointUrl" className="text-white/80">API Endpoint URL (Optional)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="apiEndpointUrl"
+                      type="url"
+                      value={formData.apiEndpointUrl}
+                      onChange={(e) => handleInputChange("apiEndpointUrl", e.target.value)}
+                      placeholder="https://api.company.com/telemetry/tower-123"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8080/api/telemetry/live")}
+                      className="whitespace-nowrap"
+                    >
+                      Use Simulator
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="apiKey" className="text-white/80">API Key (Optional)</Label>
+                  <Input
+                    id="apiKey"
+                    type="password"
+                    value={formData.apiKey}
+                    onChange={(e) => handleInputChange("apiKey", e.target.value)}
+                    placeholder="Enter API key if required"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+              </div>
+
+              {/* Connection Test */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={testConnection}
+                    disabled={connectionStatus === "testing"}
+                    className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                  >
+                    {connectionStatus === "testing" ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Globe className="w-4 h-4 mr-2" />
+                    )}
+                    {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
+                  </Button>
+                  
+                  {connectionMessage && (
+                    <div className={`text-sm px-3 py-1 rounded-lg ${
+                      connectionStatus === "success" 
+                        ? "bg-green-500/20 text-green-400 border border-green-500/30" 
+                        : connectionStatus === "error"
+                        ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                        : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                    }`}>
+                      {connectionMessage}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

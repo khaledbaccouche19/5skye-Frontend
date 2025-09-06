@@ -68,22 +68,22 @@ export function GlassMetricCard({
 
   return (
     <motion.div
-      className="glass rounded-3xl p-6 backdrop-blur-2xl border border-theme hover:glass-hover transition-all duration-300 group"
+      className="glass rounded-2xl p-4 backdrop-blur-2xl border border-theme hover:glass-hover transition-all duration-300 group"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: delay * 0.1, duration: 0.5 }}
-      whileHover={{ y: -5, scale: 1.02 }}
+      whileHover={{ y: -3, scale: 1.02 }}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center space-x-2">
           <div className={cn(
-            "p-3 rounded-2xl transition-all duration-300 group-hover:scale-110",
+            "p-2 rounded-xl transition-all duration-300 group-hover:scale-110",
             theme === 'dark' ? "bg-blue-500/20" : "bg-blue-100/50"
           )}>
-            <Icon className={cn("h-6 w-6", getStatusColor(status))} />
+            <Icon className={cn("h-5 w-5", getStatusColor(status))} />
           </div>
           <div>
-            <h3 className="text-sm font-medium text-theme-secondary">{title}</h3>
+            <h3 className="text-xs font-medium text-theme-secondary">{title}</h3>
           </div>
         </div>
         
@@ -100,12 +100,12 @@ export function GlassMetricCard({
       </div>
 
       <div className="mb-2">
-        <div className="flex items-baseline space-x-2">
-          <span className="text-3xl font-bold text-theme-primary">
+        <div className="flex items-baseline space-x-1">
+          <span className="text-2xl font-bold text-theme-primary">
             {value}
           </span>
           {unit && (
-            <span className="text-lg font-medium text-theme-secondary">
+            <span className="text-sm font-medium text-theme-secondary">
               {unit}
             </span>
           )}

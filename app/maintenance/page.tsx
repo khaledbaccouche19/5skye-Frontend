@@ -1,362 +1,613 @@
 "use client"
 
-import { useState } from "react"
-import { Wrench, Calendar, Clock, DollarSign, AlertTriangle, CheckCircle, Plus, Filter } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import {
+  Plus,
+  Search,
+  Filter,
+  Calendar,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Wrench,
+  DollarSign,
+  User,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  ExternalLink,
+} from "lucide-react"
 import { GlassMainLayout } from "@/components/layout/glass-main-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { MaintenanceForm } from "@/components/maintenance/maintenance-form"
+import { MaintenanceDetails } from "@/components/maintenance/maintenance-details"
+import { ApiClient } from "@/lib/api-client"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
-// Mock maintenance data
-const maintenanceData = [
-  {
-    id: "MNT-001",
-    towerId: "TWR-001",
-    towerName: "Tower Alpha",
-    title: "Battery Replacement",
-    description: "Replace aging battery cells with new lithium-ion batteries",
-    type: "Preventive",
-    priority: "High",
-    status: "Scheduled",
-    startDate: "2024-02-15",
-    endDate: "2024-02-16",
-    estimatedDuration: 16,
-    actualDuration: null,
-    estimatedCost: 2500,
-    actualCost: null,
-    technician: "John Smith",
-    notes: "Battery showing signs of degradation, replacement recommended"
-  },
-  {
-    id: "MNT-002",
-    towerId: "TWR-003",
-    towerName: "Tower Gamma",
-    title: "Emergency Repair",
-    description: "Fix critical hardware failure in communication module",
-    type: "Emergency",
-    priority: "Critical",
-    status: "In Progress",
-    startDate: "2024-01-20",
-    endDate: "2024-01-22",
-    estimatedDuration: 24,
-    actualDuration: 20,
-    estimatedCost: 5000,
-    actualCost: 4800,
-    technician: "Sarah Johnson",
-    notes: "Hardware failure detected, immediate repair required"
-  },
-  {
-    id: "MNT-003",
-    towerId: "TWR-002",
-    towerName: "Tower Beta",
-    title: "Routine Inspection",
-    description: "Annual safety and performance inspection",
-    type: "Preventive",
-    priority: "Medium",
-    status: "Completed",
-    startDate: "2024-01-10",
-    endDate: "2024-01-10",
-    estimatedDuration: 8,
-    actualDuration: 7,
-    estimatedCost: 800,
-    actualCost: 750,
-    technician: "Mike Wilson",
-    notes: "All systems operating within normal parameters"
-  },
-  {
-    id: "MNT-004",
-    towerId: "TWR-004",
-    towerName: "Tower Delta",
-    title: "Software Update",
-    description: "Update firmware and security patches",
-    type: "Preventive",
-    priority: "Medium",
-    status: "Scheduled",
-    startDate: "2024-02-20",
-    endDate: "2024-02-20",
-    estimatedDuration: 4,
-    actualDuration: null,
-    estimatedCost: 300,
-    actualCost: null,
-    technician: "Lisa Chen",
-    notes: "Security patches available, update recommended"
-  },
-  {
-    id: "MNT-005",
-    towerId: "TWR-005",
-    towerName: "Tower Echo",
-    title: "Hardware Upgrade",
-    description: "Upgrade network equipment for 5G capabilities",
-    type: "Upgrade",
-    priority: "High",
-    status: "Planned",
-    startDate: "2024-03-01",
-    endDate: "2024-03-03",
-    estimatedDuration: 48,
-    actualDuration: null,
-    estimatedCost: 15000,
-    actualCost: null,
-    technician: "David Brown",
-    notes: "Major upgrade to support new 5G standards"
-  }
-]
+interface MaintenanceRecord {
+  id: string
+  title: string
+  description?: string
+  type: string
+  priority: string
+  status: string
+  startDate: string
+  endDate?: string
+  scheduledDate?: string
+  technician?: string
+  technicianContact?: string
+  estimatedDurationHours?: number
+  actualDurationHours?: number
+  estimatedCost?: number
+  actualCost?: number
+  notes?: string
+  partsUsed?: string
+  isRecurring: boolean
+  recurrenceIntervalDays?: number
+  nextMaintenanceDate?: string
+  towerId: string
+  towerName: string
+  createdAt: string
+  updatedAt: string
+}
 
-export default function MaintenanceDashboard() {
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [selectedPriority, setSelectedPriority] = useState("all")
-  const [selectedType, setSelectedType] = useState("all")
+function MaintenanceContent() {
+  const router = useRouter()
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([])
+  const [filteredRecords, setFilteredRecords] = useState<MaintenanceRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
+  const [selectedRecord, setSelectedRecord] = useState<MaintenanceRecord | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
-  const filteredMaintenance = maintenanceData.filter(item => {
-    if (selectedStatus !== "all" && item.status !== selectedStatus) return false
-    if (selectedPriority !== "all" && item.priority !== selectedPriority) return false
-    if (selectedType !== "all" && item.type !== selectedType) return false
-    return true
-  })
+  // Fetch maintenance records
+  useEffect(() => {
+    const fetchMaintenanceRecords = async () => {
+      try {
+        setIsLoading(true)
+        const records = await ApiClient.getAllMaintenance()
+        setMaintenanceRecords(records)
+        setFilteredRecords(records)
+      } catch (error) {
+        console.error('Failed to fetch maintenance records:', error)
+        // Fallback to dummy data
+        setMaintenanceRecords(getDummyMaintenanceData())
+        setFilteredRecords(getDummyMaintenanceData())
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const totalMaintenance = maintenanceData.length
-  const completedMaintenance = maintenanceData.filter(m => m.status === "Completed").length
-  const inProgressMaintenance = maintenanceData.filter(m => m.status === "In Progress").length
-  const scheduledMaintenance = maintenanceData.filter(m => m.status === "Scheduled").length
-  const plannedMaintenance = maintenanceData.filter(m => m.status === "Planned").length
+    fetchMaintenanceRecords()
+  }, [])
 
-  const totalEstimatedCost = maintenanceData.reduce((sum, m) => sum + m.estimatedCost, 0)
-  const totalActualCost = maintenanceData.filter(m => m.actualCost).reduce((sum, m) => sum + m.actualCost!, 0)
-  const costSavings = totalEstimatedCost - totalActualCost
+  // Filter records based on search and filters
+  useEffect(() => {
+    let filtered = maintenanceRecords
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(record =>
+        record.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.technician?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.towerName.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(record => record.status === statusFilter)
+    }
+
+    // Priority filter
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter(record => record.priority === priorityFilter)
+    }
+
+    // Type filter
+    if (typeFilter !== "all") {
+      filtered = filtered.filter(record => record.type === typeFilter)
+    }
+
+    setFilteredRecords(filtered)
+  }, [maintenanceRecords, searchTerm, statusFilter, priorityFilter, typeFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Completed": return "bg-green-500/20 text-green-300 border-green-500/30"
-      case "In Progress": return "bg-blue-500/20 text-blue-300 border-blue-500/30"
-      case "Scheduled": return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-      case "Planned": return "bg-purple-500/20 text-purple-300 border-purple-500/30"
-      default: return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+      case "COMPLETED": return "bg-green-500"
+      case "IN_PROGRESS": return "bg-blue-500"
+      case "SCHEDULED": return "bg-yellow-500"
+      case "PLANNED": return "bg-purple-500"
+      case "CANCELLED": return "bg-red-500"
+      case "ON_HOLD": return "bg-orange-500"
+      case "OVERDUE": return "bg-red-600"
+      default: return "bg-gray-500"
     }
   }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "Critical": return "bg-red-500/20 text-red-300 border-red-500/30"
-      case "High": return "bg-orange-500/20 text-orange-300 border-orange-500/30"
-      case "Medium": return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-      case "Low": return "bg-green-500/20 text-green-300 border-green-500/30"
-      default: return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+      case "CRITICAL": return "text-red-400"
+      case "HIGH": return "text-orange-400"
+      case "MEDIUM": return "text-yellow-400"
+      case "LOW": return "text-green-400"
+      default: return "text-gray-400"
     }
+  }
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "COMPLETED": return "default"
+      case "IN_PROGRESS": return "secondary"
+      case "SCHEDULED": return "outline"
+      case "PLANNED": return "outline"
+      case "CANCELLED": return "destructive"
+      case "ON_HOLD": return "secondary"
+      case "OVERDUE": return "destructive"
+      default: return "outline"
+    }
+  }
+
+  const handleCreateMaintenance = async (maintenanceData: any) => {
+    try {
+      const newRecord = await ApiClient.createMaintenance(maintenanceData)
+      setMaintenanceRecords(prev => [newRecord, ...prev])
+      setIsFormOpen(false)
+    } catch (error) {
+      console.error('Failed to create maintenance record:', error)
+    }
+  }
+
+  const handleUpdateMaintenance = async (id: string, maintenanceData: any) => {
+    try {
+      const updatedRecord = await ApiClient.updateMaintenance(id, maintenanceData)
+      setMaintenanceRecords(prev => 
+        prev.map(record => record.id === id ? updatedRecord : record)
+      )
+      setIsFormOpen(false)
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Failed to update maintenance record:', error)
+    }
+  }
+
+  const handleDeleteMaintenance = async (id: string) => {
+    try {
+      await ApiClient.deleteMaintenance(id)
+      setMaintenanceRecords(prev => prev.filter(record => record.id !== id))
+    } catch (error) {
+      console.error('Failed to delete maintenance record:', error)
+    }
+  }
+
+  const handleViewDetails = (record: MaintenanceRecord) => {
+    setSelectedRecord(record)
+    setIsDetailsOpen(true)
+  }
+
+  const handleViewTower = (record: MaintenanceRecord) => {
+    router.push(`/towers/${record.towerId}`)
+  }
+
+  const handleEditMaintenance = (record: MaintenanceRecord) => {
+    setSelectedRecord(record)
+    setIsEditing(true)
+    setIsFormOpen(true)
+  }
+
+  if (isLoading) {
+    return (
+      <GlassMainLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white/60">Loading maintenance records...</p>
+          </div>
+        </div>
+      </GlassMainLayout>
+    )
   }
 
   return (
     <GlassMainLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-50">Maintenance Dashboard</h1>
-            <p className="text-slate-300">Maintenance scheduling, tracking, and cost management</p>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              Maintenance Management
+            </h1>
+            <p className="text-white/60 text-lg mt-1">
+              Manage tower maintenance schedules, records, and technicians
+            </p>
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button
+            onClick={() => {
+              setSelectedRecord(null)
+              setIsEditing(false)
+              setIsFormOpen(true)
+            }}
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Schedule Maintenance
           </Button>
         </div>
 
-        {/* Filters */}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+            <CardContent className="p-6">
         <div className="flex items-center space-x-4">
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-40 bg-slate-700/40 backdrop-blur-xl border-slate-500/40 text-white rounded-2xl">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800/95 backdrop-blur-2xl border-slate-500/50 rounded-2xl">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Scheduled">Scheduled</SelectItem>
-              <SelectItem value="Planned">Planned</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-            <SelectTrigger className="w-40 bg-slate-700/40 backdrop-blur-xl border-slate-500/40 text-white rounded-2xl">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800/95 backdrop-blur-2xl border-slate-500/50 rounded-2xl">
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="Critical">Critical</SelectItem>
-              <SelectItem value="High">High</SelectItem>
-              <SelectItem value="Medium">Medium</SelectItem>
-              <SelectItem value="Low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-40 bg-slate-700/40 backdrop-blur-xl border-slate-500/40 text-white rounded-2xl">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800/95 backdrop-blur-2xl border-slate-500/50 rounded-2xl">
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Preventive">Preventive</SelectItem>
-              <SelectItem value="Emergency">Emergency</SelectItem>
-              <SelectItem value="Upgrade">Upgrade</SelectItem>
-            </SelectContent>
-          </Select>
+                <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {maintenanceRecords.filter(r => r.status === "SCHEDULED").length}
+                  </p>
+                  <p className="text-white/60 text-sm">Scheduled</p>
+                </div>
         </div>
-
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Maintenance */}
-          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-300">Total Maintenance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-50 mb-2">{totalMaintenance}</div>
-              <div className="text-sm text-slate-400">Active tasks</div>
             </CardContent>
           </Card>
 
-          {/* Completed */}
-          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-300">Completed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-400 mb-2">{completedMaintenance}</div>
-              <Progress value={(completedMaintenance / totalMaintenance) * 100} className="h-2 bg-slate-600/50" />
-              <div className="text-sm text-slate-400 mt-2">{Math.round((completedMaintenance / totalMaintenance) * 100)}% completion rate</div>
+          <Card className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {maintenanceRecords.filter(r => r.status === "COMPLETED").length}
+                  </p>
+                  <p className="text-white/60 text-sm">Completed</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* In Progress */}
-          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-300">In Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-400 mb-2">{inProgressMaintenance}</div>
-              <div className="text-sm text-slate-400">Currently working</div>
+          <Card className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-red-500/20 rounded-2xl flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {maintenanceRecords.filter(r => r.status === "OVERDUE").length}
+                  </p>
+                  <p className="text-white/60 text-sm">Overdue</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Scheduled */}
-          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-300">Scheduled</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-400 mb-2">{scheduledMaintenance}</div>
-              <div className="text-sm text-slate-400">Upcoming tasks</div>
+          <Card className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center">
+                  <Wrench className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {maintenanceRecords.filter(r => r.status === "IN_PROGRESS").length}
+                  </p>
+                  <p className="text-white/60 text-sm">In Progress</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Cost Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Cost Summary */}
-          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-            <CardHeader>
-              <CardTitle className="text-slate-50 flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-green-400" />
-                <span>Cost Overview</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300">Estimated Total:</span>
-                <span className="text-slate-50 font-bold">${totalEstimatedCost.toLocaleString()}</span>
+        {/* Filters */}
+        <Card className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
+                  <Input
+                    placeholder="Search maintenance records..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300">Actual Spent:</span>
-                <span className="text-slate-50 font-bold">${totalActualCost.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300">Cost Savings:</span>
-                <span className="text-green-400 font-bold">${costSavings.toLocaleString()}</span>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-48 bg-white/5 border-white/10 text-white">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="PLANNED">Planned</SelectItem>
+                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  <SelectItem value="ON_HOLD">On Hold</SelectItem>
+                  <SelectItem value="OVERDUE">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-full md:w-48 bg-white/5 border-white/10 text-white">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full md:w-48 bg-white/5 border-white/10 text-white">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="ROUTINE">Routine</SelectItem>
+                  <SelectItem value="PREVENTIVE">Preventive</SelectItem>
+                  <SelectItem value="CORRECTIVE">Corrective</SelectItem>
+                  <SelectItem value="EMERGENCY">Emergency</SelectItem>
+                  <SelectItem value="UPGRADE">Upgrade</SelectItem>
+                  <SelectItem value="INSPECTION">Inspection</SelectItem>
+                </SelectContent>
+              </Select>
               </div>
-              <Progress value={(totalActualCost / totalEstimatedCost) * 100} className="h-2 bg-slate-600/50" />
             </CardContent>
           </Card>
 
-          {/* Upcoming Maintenance */}
-          <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-            <CardHeader>
-              <CardTitle className="text-slate-50 flex items-center space-x-2">
-                <Calendar className="h-5 w-5 text-blue-400" />
-                <span>Upcoming Maintenance</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {maintenanceData
-                .filter(m => m.status === "Scheduled" || m.status === "Planned")
-                .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-                .slice(0, 3)
-                .map(maintenance => (
-                  <div key={maintenance.id} className="flex items-center justify-between p-3 bg-slate-600/20 rounded-lg">
-                    <div>
-                      <div className="font-medium text-slate-50">{maintenance.title}</div>
-                      <div className="text-sm text-slate-400">{maintenance.towerName}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-slate-300">{maintenance.startDate}</div>
-                      <Badge className={getPriorityColor(maintenance.priority)}>{maintenance.priority}</Badge>
-                    </div>
-                  </div>
-                ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Maintenance List */}
-        <Card className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 shadow-glass-lg">
-          <CardHeader>
-            <CardTitle className="text-slate-50">Maintenance Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-600">
-                    <th className="text-left p-2 text-slate-300">Task</th>
-                    <th className="text-left p-2 text-slate-300">Tower</th>
-                    <th className="text-left p-2 text-slate-300">Type</th>
-                    <th className="text-left p-2 text-slate-300">Priority</th>
-                    <th className="text-left p-2 text-slate-300">Status</th>
-                    <th className="text-left p-2 text-slate-300">Start Date</th>
-                    <th className="text-left p-2 text-slate-300">Duration</th>
-                    <th className="text-left p-2 text-slate-300">Cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMaintenance.map((maintenance) => (
-                    <tr key={maintenance.id} className="border-b border-slate-600/50">
-                      <td className="p-2">
-                        <div>
-                          <div className="font-medium text-slate-50">{maintenance.title}</div>
-                          <div className="text-xs text-slate-400">{maintenance.description}</div>
+        {/* Maintenance Records List */}
+        <div className="space-y-4">
+          {filteredRecords.length === 0 ? (
+            <Card className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+              <CardContent className="p-12 text-center">
+                <Wrench className="h-12 w-12 text-white/30 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-white mb-2">No maintenance records found</h3>
+                <p className="text-white/60 mb-4">
+                  {searchTerm || statusFilter !== "all" || priorityFilter !== "all" || typeFilter !== "all"
+                    ? "Try adjusting your filters to see more results."
+                    : "Get started by scheduling your first maintenance task."}
+                </p>
+                <Button
+                  onClick={() => {
+                    setSelectedRecord(null)
+                    setIsEditing(false)
+                    setIsFormOpen(true)
+                  }}
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Schedule Maintenance
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredRecords.map((record) => (
+              <Card key={record.id} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-white">{record.title}</h3>
+                        <Badge variant={getStatusBadgeVariant(record.status)}>
+                          {record.status.replace('_', ' ')}
+                        </Badge>
+                        <Badge className={`text-xs ${getPriorityColor(record.priority)}`}>
+                          {record.priority}
+                        </Badge>
+                      </div>
+                      {record.description && (
+                        <p className="text-white/60 text-sm mb-3">{record.description}</p>
+                      )}
+                      <div className="flex items-center space-x-6 text-sm text-white/60">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>{new Date(record.startDate).toLocaleDateString()}</span>
                         </div>
-                      </td>
-                      <td className="p-2 text-slate-300">{maintenance.towerName}</td>
-                      <td className="p-2">
-                        <Badge variant="outline" className="text-xs">{maintenance.type}</Badge>
-                      </td>
-                      <td className="p-2">
-                        <Badge className={getPriorityColor(maintenance.priority)}>{maintenance.priority}</Badge>
-                      </td>
-                      <td className="p-2">
-                        <Badge className={getStatusColor(maintenance.status)}>{maintenance.status}</Badge>
-                      </td>
-                      <td className="p-2 text-slate-300">{maintenance.startDate}</td>
-                      <td className="p-2 text-slate-300">
-                        {maintenance.actualDuration || maintenance.estimatedDuration}h
-                      </td>
-                      <td className="p-2 text-slate-300">
-                        ${(maintenance.actualCost || maintenance.estimatedCost).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                        {record.technician && (
+                          <div className="flex items-center space-x-1">
+                            <User className="h-4 w-4" />
+                            <span>{record.technician}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-1">
+                          <Wrench className="h-4 w-4" />
+                          <span>{record.towerName}</span>
+                        </div>
+                        {record.estimatedCost && (
+                          <div className="flex items-center space-x-1">
+                            <DollarSign className="h-4 w-4" />
+                            <span>${record.estimatedCost.toLocaleString()}</span>
+                          </div>
+                        )}
+                    </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-white/60 hover:text-white">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewDetails(record)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewTower(record)}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View Tower
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditMaintenance(record)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteMaintenance(record.id)}
+                          className="text-red-400"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+            </CardContent>
+          </Card>
+            ))
+          )}
+        </div>
+
+        {/* Maintenance Form Dialog */}
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/10 backdrop-blur-2xl border border-white/20">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-white">
+                {isEditing ? 'Edit Maintenance Record' : 'Schedule New Maintenance'}
+              </DialogTitle>
+            </DialogHeader>
+            <MaintenanceForm
+              maintenance={selectedRecord}
+              onSubmit={isEditing ? 
+                (data) => handleUpdateMaintenance(selectedRecord!.id, data) : 
+                handleCreateMaintenance
+              }
+              onCancel={() => {
+                setIsFormOpen(false)
+                setIsEditing(false)
+                setSelectedRecord(null)
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Maintenance Details Dialog */}
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/10 backdrop-blur-2xl border border-white/20">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-white">Maintenance Details</DialogTitle>
+            </DialogHeader>
+            {selectedRecord && (
+              <MaintenanceDetails 
+                maintenance={selectedRecord}
+                onEdit={() => {
+                  setIsDetailsOpen(false)
+                  handleEditMaintenance(selectedRecord)
+                }}
+                onDelete={() => {
+                  setIsDetailsOpen(false)
+                  handleDeleteMaintenance(selectedRecord.id)
+                }}
+                onViewTower={() => {
+                  setIsDetailsOpen(false)
+                  handleViewTower(selectedRecord)
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </GlassMainLayout>
+  )
+}
+
+// Dummy data for fallback
+function getDummyMaintenanceData(): MaintenanceRecord[] {
+  return [
+    {
+      id: "MAINT-001",
+      title: "Routine Battery Replacement",
+      description: "Quarterly battery replacement and system check",
+      type: "ROUTINE",
+      priority: "MEDIUM",
+      status: "COMPLETED",
+      startDate: "2024-01-15",
+      endDate: "2024-01-15",
+      scheduledDate: "2024-01-15",
+      technician: "John Smith",
+      technicianContact: "john.smith@company.com",
+      estimatedDurationHours: 4,
+      actualDurationHours: 3,
+      estimatedCost: 500,
+      actualCost: 450,
+      notes: "Battery replaced successfully, all systems operational",
+      partsUsed: "Lithium-ion battery pack, connectors",
+      isRecurring: true,
+      recurrenceIntervalDays: 90,
+      nextMaintenanceDate: "2024-04-15",
+      towerId: "TWR-001",
+      towerName: "Tower Alpha",
+      createdAt: "2024-01-10T10:00:00Z",
+      updatedAt: "2024-01-15T16:30:00Z"
+    },
+    {
+      id: "MAINT-002",
+      title: "Emergency Network Module Repair",
+      description: "Critical network connectivity issue requiring immediate attention",
+      type: "EMERGENCY",
+      priority: "CRITICAL",
+      status: "IN_PROGRESS",
+      startDate: "2024-01-20",
+      technician: "Sarah Johnson",
+      technicianContact: "sarah.johnson@company.com",
+      estimatedDurationHours: 8,
+      actualDurationHours: 6,
+      estimatedCost: 1200,
+      notes: "Network module showing intermittent failures",
+      partsUsed: "Network interface card, cables",
+      isRecurring: false,
+      towerId: "TWR-002",
+      towerName: "Tower Beta",
+      createdAt: "2024-01-20T08:00:00Z",
+      updatedAt: "2024-01-20T14:00:00Z"
+    },
+    {
+      id: "MAINT-003",
+      title: "Preventive Maintenance Check",
+      description: "Monthly preventive maintenance and system optimization",
+      type: "PREVENTIVE",
+      priority: "LOW",
+      status: "SCHEDULED",
+      startDate: "2024-01-25",
+      scheduledDate: "2024-01-25",
+      technician: "Mike Davis",
+      technicianContact: "mike.davis@company.com",
+      estimatedDurationHours: 2,
+      estimatedCost: 300,
+      notes: "Routine check and cleaning",
+      isRecurring: true,
+      recurrenceIntervalDays: 30,
+      nextMaintenanceDate: "2024-02-25",
+      towerId: "TWR-003",
+      towerName: "Tower Gamma",
+      createdAt: "2024-01-22T09:00:00Z",
+      updatedAt: "2024-01-22T09:00:00Z"
+    }
+  ]
+}
+
+export default function MaintenancePage() {
+  return (
+    <ProtectedRoute>
+      <MaintenanceContent />
+    </ProtectedRoute>
   )
 }

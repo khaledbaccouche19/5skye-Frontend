@@ -9,6 +9,7 @@ import { GlassMetricCard } from "@/components/ui/glass-metric-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { ConnectionStatusBadge, getTowerDataSource, isTowerConnected } from "@/components/ui/connection-status-badge"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ApiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
@@ -399,18 +400,25 @@ function TowersContent() {
                     </p>
                   </div>
                 </div>
-                <Badge
-                  variant={
-                    tower.status === "online"
-                      ? "default"
-                      : tower.status === "warning"
-                        ? "secondary"
-                        : "destructive"
-                  }
-                  className="backdrop-blur-xl"
-                >
-                  {tower.status.toUpperCase()}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      tower.status === "online"
+                        ? "default"
+                        : tower.status === "warning"
+                          ? "secondary"
+                          : "destructive"
+                    }
+                    className="backdrop-blur-xl"
+                  >
+                    {tower.status.toUpperCase()}
+                  </Badge>
+                  <ConnectionStatusBadge
+                    isConnected={isTowerConnected(tower)}
+                    dataSource={getTowerDataSource(tower)}
+                    className="text-xs"
+                  />
+                </div>
               </div>
 
               <div className="space-y-3 mb-4">

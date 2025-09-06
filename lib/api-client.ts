@@ -365,4 +365,57 @@ export class ApiClient {
   static async getTower3DModel(id: string): Promise<{ model3dPath: string }> {
     return this.request<{ model3dPath: string }>(`/towers/${id}/3d-model`)
   }
+
+  // Maintenance endpoints
+  static async getAllMaintenance() {
+    return this.request<any[]>('/maintenance')
+  }
+
+  static async getMaintenanceById(id: string) {
+    return this.request<any>(`/maintenance/${id}`)
+  }
+
+  static async getMaintenanceByTowerId(towerId: string) {
+    return this.request<any[]>(`/maintenance/tower/${towerId}`)
+  }
+
+  static async getMaintenanceByStatus(status: string) {
+    return this.request<any[]>(`/maintenance/status/${status}`)
+  }
+
+  static async getMaintenanceByTowerIdAndStatus(towerId: string, status: string) {
+    return this.request<any[]>(`/maintenance/tower/${towerId}/status/${status}`)
+  }
+
+  static async getOverdueMaintenance() {
+    return this.request<any[]>('/maintenance/overdue')
+  }
+
+  static async getUpcomingRecurringMaintenance() {
+    return this.request<any[]>('/maintenance/upcoming')
+  }
+
+  static async createMaintenance(maintenanceData: any) {
+    return this.request<any>('/maintenance', {
+      method: 'POST',
+      body: JSON.stringify(maintenanceData),
+    })
+  }
+
+  static async updateMaintenance(id: string, maintenanceData: any) {
+    return this.request<any>(`/maintenance/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(maintenanceData),
+    })
+  }
+
+  static async deleteMaintenance(id: string) {
+    return this.request<any>(`/maintenance/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  static async getMaintenanceCountByTowerIdAndStatus(towerId: string, status: string) {
+    return this.request<number>(`/maintenance/tower/${towerId}/count/${status}`)
+  }
 }

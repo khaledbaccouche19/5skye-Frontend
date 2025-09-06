@@ -200,6 +200,25 @@ export default function NewTowerPage() {
     }
   }
 
+  const populateFormWithTelemetryData = () => {
+    if (!fetchedData) return
+
+    console.log('🔄 Populating form with telemetry data:', fetchedData)
+
+    // Update form data with fetched telemetry values
+    setFormData(prev => ({
+      ...prev,
+      // Only update fields that have values in the telemetry data
+      status: fetchedData.status ? fetchedData.status.toUpperCase() : prev.status,
+      battery: fetchedData.battery !== null ? fetchedData.battery.toString() : prev.battery,
+      temperature: fetchedData.temperature !== null ? fetchedData.temperature.toString() : prev.temperature,
+      uptime: fetchedData.uptime !== null ? fetchedData.uptime.toString() : prev.uptime,
+      networkLoad: fetchedData.networkLoad !== null ? fetchedData.networkLoad.toString() : prev.networkLoad,
+    }))
+
+    console.log('✅ Form populated with telemetry data')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -679,14 +698,25 @@ export default function NewTowerPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="apiEndpointUrl" className="text-white/80">API Endpoint URL (Optional)</Label>
-                  <Input
-                    id="apiEndpointUrl"
-                    type="url"
-                    value={formData.apiEndpointUrl}
-                    onChange={(e) => handleInputChange("apiEndpointUrl", e.target.value)}
-                    placeholder="https://api.company.com/telemetry/tower-123"
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="apiEndpointUrl"
+                      type="url"
+                      value={formData.apiEndpointUrl}
+                      onChange={(e) => handleInputChange("apiEndpointUrl", e.target.value)}
+                      placeholder="https://api.company.com/telemetry/tower-123"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8080/api/telemetry/live")}
+                      className="whitespace-nowrap"
+                    >
+                      Use Simulator
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -744,10 +774,22 @@ export default function NewTowerPage() {
           {/* Data Preview - Integrated into the form */}
           {fetchedData && (
             <div className="mt-6 bg-white/5 border border-white/10 rounded-xl p-4">
-              <h3 className="text-white/80 text-lg mb-3 flex items-center">
-                <Activity className="h-5 w-5 text-purple-400 mr-2" />
-                Fetched Telemetry Data
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white/80 text-lg flex items-center">
+                  <Activity className="h-5 w-5 text-purple-400 mr-2" />
+                  Fetched Telemetry Data
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={populateFormWithTelemetryData}
+                  className="bg-green-500/20 border-green-500/30 text-green-200 hover:bg-green-500/30"
+                >
+                  <Activity className="h-4 w-4 mr-2" />
+                  Populate Form
+                </Button>
+              </div>
               <div className="overflow-x-auto">
                 <pre className="bg-white/10 border border-white/20 rounded-lg p-4 text-white text-sm max-h-64 overflow-y-auto">
                   {JSON.stringify(fetchedData, null, 2)}

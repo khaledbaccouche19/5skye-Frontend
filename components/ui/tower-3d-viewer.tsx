@@ -242,12 +242,12 @@ function TowerModel({
           </Cylinder>
 
           {/* Main Tower Structure */}
-          <Cylinder args={[0.3, 0.5, 8]} position={[0, 2, 0]}>
+          <Cylinder args={[0.4, 0.6, 10]} position={[0, 2.5, 0]}>
             <meshStandardMaterial color="#475569" />
           </Cylinder>
 
           {/* Status Indicator */}
-          <Sphere args={[0.2]} position={[0, 6.5, 0]}>
+          <Sphere args={[0.25]} position={[0, 8, 0]}>
             <meshStandardMaterial
               color={getStatusColor(tower.status || 'offline')}
               emissive={getStatusColor(tower.status || 'offline')}
@@ -256,20 +256,20 @@ function TowerModel({
           </Sphere>
 
           {/* Battery Indicator */}
-          <Cylinder args={[0.1, 0.1, 0.8]} position={[-1.5, 5, 0]}>
+          <Cylinder args={[0.12, 0.12, 1]} position={[-1.8, 6, 0]}>
             <meshStandardMaterial color={getBatteryColor(tower.battery || 0)} />
           </Cylinder>
-          <Html position={[-1.5, 5.5, 0]} center>
+          <Html position={[-1.8, 6.6, 0]} center>
             <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
               Battery: {tower.battery || 0}%
             </div>
           </Html>
 
           {/* Temperature Indicator */}
-          <Cylinder args={[0.1, 0.1, 0.8]} position={[1.5, 5, 0]}>
+          <Cylinder args={[0.12, 0.12, 1]} position={[1.8, 6, 0]}>
             <meshStandardMaterial color={getTemperatureColor(tower.temperature || 25)} />
           </Cylinder>
-          <Html position={[1.5, 5.5, 0]} center>
+          <Html position={[1.8, 6.6, 0]} center>
             <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
               Temperature: {tower.temperature || 25}°C
             </div>
@@ -279,15 +279,15 @@ function TowerModel({
           {[0, 1, 2].map((i) => (
             <Box
               key={i}
-              args={[0.1, 0.1, 1.5]}
-              position={[1.2, 5 - i * 0.5, 0]}
+              args={[0.12, 0.12, 1.8]}
+              position={[1.5, 6.5 - i * 0.6, 0]}
               rotation={[0, (i * Math.PI * 2) / 3, 0]}
               onPointerOver={() => setHoveredComponent(`antenna-${i}`)}
               onPointerOut={() => setHoveredComponent(null)}
             >
               <meshStandardMaterial color="#374151" />
               {hoveredComponent === `antenna-${i}` && (
-                <Html position={[0, 0, 0.8]} center>
+                <Html position={[0, 0, 0.9]} center>
                   <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
                     {tower.components?.[i] || "Communication Array"}
                   </div>
@@ -297,12 +297,12 @@ function TowerModel({
           ))}
 
           {/* Tower Label */}
-          <Text position={[0, -3, 0]} fontSize={0.5} color="#1F2937" anchorX="center" anchorY="middle">
+          <Text position={[0, -3.5, 0]} fontSize={0.6} color="#1F2937" anchorX="center" anchorY="middle">
             {tower.name || "Tower"}
           </Text>
 
           {/* Status Badge */}
-          <Html position={[0, 7, 0]} center>
+          <Html position={[0, 8.5, 0]} center>
             <Badge
               variant={tower.status === "online" ? "default" : tower.status === "warning" ? "secondary" : "destructive"}
               className="text-xs"
@@ -502,7 +502,7 @@ export function Tower3DViewer({ tower }: Tower3DViewerProps) {
 
   return (
     <div
-      className={`relative ${isFullscreen ? "fixed inset-0 z-50 bg-white dark:bg-slate-900" : "h-96"} rounded-lg overflow-hidden`}
+      className={`relative ${isFullscreen ? "fixed inset-0 z-50 bg-white dark:bg-slate-900" : "h-full"} rounded-lg overflow-hidden`}
     >
       {/* Controls */}
       <div className="absolute top-4 right-4 z-10 flex space-x-2">
@@ -613,7 +613,7 @@ export function Tower3DViewer({ tower }: Tower3DViewerProps) {
 
       {/* 3D Canvas */}
       <Canvas
-        camera={{ position: [5, 5, 5], fov: 60 }}
+        camera={{ position: [4, 4, 4], fov: 50 }}
         style={{ background: "linear-gradient(to bottom, #e0f2fe, #f8fafc)" }}
       >
         <Suspense fallback={null}>
@@ -631,7 +631,7 @@ export function Tower3DViewer({ tower }: Tower3DViewerProps) {
               modelRotation={modelRotation}
             />
           </ModelErrorBoundary>
-          <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} maxDistance={20} minDistance={3} />
+          <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} maxDistance={15} minDistance={2} />
         </Suspense>
       </Canvas>
 
