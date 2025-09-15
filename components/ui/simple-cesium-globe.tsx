@@ -20,6 +20,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { cesiumManager } from "@/lib/cesium-manager"
+import { isTowerConnected } from "./connection-status-badge"
 
 interface Tower {
   id: string
@@ -515,28 +516,36 @@ export function SimpleCesiumGlobe({ towers, onTowerClick, className }: SimpleCes
                     <Battery className="h-4 w-4 text-emerald-500" />
                     <div>
                       <p className="text-xs text-slate-500">Battery</p>
-                      <p className="text-sm font-medium">{selectedTower.battery}%</p>
+                      <p className="text-sm font-medium">
+                        {isTowerConnected(selectedTower) ? selectedTower.battery : 0}%
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Thermometer className="h-4 w-4 text-orange-500" />
                     <div>
                       <p className="text-xs text-slate-500">Temperature</p>
-                      <p className="text-sm font-medium">{selectedTower.temperature}°C</p>
+                      <p className="text-sm font-medium">
+                        {isTowerConnected(selectedTower) ? selectedTower.temperature : 0}°C
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Wifi className="h-4 w-4 text-purple-500" />
                     <div>
                       <p className="text-xs text-slate-500">Network Load</p>
-                      <p className="text-sm font-medium">{selectedTower.networkLoad}%</p>
+                      <p className="text-sm font-medium">
+                        {isTowerConnected(selectedTower) ? selectedTower.networkLoad : 0}%
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Globe className="h-4 w-4 text-cyan-500" />
                     <div>
                       <p className="text-xs text-slate-500">Uptime</p>
-                      <p className="text-sm font-medium">{selectedTower.uptime}%</p>
+                      <p className="text-sm font-medium">
+                        {isTowerConnected(selectedTower) ? selectedTower.uptime : 0}%
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -68,6 +68,7 @@ export class ApiClient {
         city: "New York",
         useCase: "Telecommunications",
         region: "Northeast",
+        apiEndpointUrl: "http://localhost:8080/api/telemetry/live",
         location: {
           lat: 40.7128,
           lng: -74.0060,
@@ -83,6 +84,7 @@ export class ApiClient {
         city: "Los Angeles",
         useCase: "Data Center",
         region: "West Coast",
+        apiEndpointUrl: "http://localhost:8080/api/telemetry/live",
         location: {
           lat: 34.0522,
           lng: -118.2437,
@@ -98,6 +100,7 @@ export class ApiClient {
         city: "Chicago",
         useCase: "IoT Hub",
         region: "Midwest",
+        apiEndpointUrl: "http://localhost:8080/api/telemetry/live",
         location: {
           lat: 41.8781,
           lng: -87.6298,
@@ -113,6 +116,7 @@ export class ApiClient {
         city: "Houston",
         useCase: "Smart City",
         region: "South",
+        apiEndpointUrl: "http://localhost:8080/api/telemetry/live",
         location: {
           lat: 29.7604,
           lng: -95.3698,
@@ -250,6 +254,31 @@ export class ApiClient {
   // Test connection to external API endpoint
   static async testConnection(apiEndpointUrl: string, apiKey?: string) {
     try {
+      // First, validate that the URL is properly formatted
+      let validatedUrl: URL
+      try {
+        // If the URL doesn't have a protocol, add http://
+        if (!apiEndpointUrl.startsWith('http://') && !apiEndpointUrl.startsWith('https://')) {
+          apiEndpointUrl = 'http://' + apiEndpointUrl
+        }
+        validatedUrl = new URL(apiEndpointUrl)
+      } catch (urlError) {
+        throw new Error('Invalid URL format. Please enter a valid URL (e.g., http://localhost:8080/api/telemetry)')
+      }
+
+      // Check if it's a valid HTTP/HTTPS URL
+      if (!['http:', 'https:'].includes(validatedUrl.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported')
+      }
+
+      // Check if it's not pointing to the current frontend domain (to avoid false positives)
+      if (typeof window !== 'undefined') {
+        const currentOrigin = window.location.origin
+        if (validatedUrl.origin === currentOrigin) {
+          throw new Error('Cannot use the frontend URL as an API endpoint. Please use a different backend URL.')
+        }
+      }
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       }
@@ -262,7 +291,7 @@ export class ApiClient {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
-      const response = await fetch(apiEndpointUrl, {
+      const response = await fetch(validatedUrl.toString(), {
         method: 'GET',
         headers,
         signal: controller.signal
@@ -282,7 +311,7 @@ export class ApiClient {
       if (error.name === 'AbortError') {
         throw new Error('Connection failed: Request timed out after 10 seconds')
       } else if (error.message.includes('Failed to fetch')) {
-        throw new Error('Connection failed: Network error - backend server may not be running')
+        throw new Error('Connection failed: Network error - unable to reach the API endpoint')
       } else if (error.message.includes('CORS')) {
         throw new Error('Connection failed: CORS policy blocks this request')
       } else {

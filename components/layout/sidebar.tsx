@@ -9,13 +9,11 @@ import { cn } from "@/lib/utils"
 const navigation = [
   { name: "Dashboard", href: "/", icon: Globe },
   { name: "Towers", href: "/towers", icon: Radio },
+  { name: "Maintenance", href: "/maintenance", icon: Wrench },
   { name: "Performance", href: "/performance", icon: TrendingUp },
   { name: "Telemetry", href: "/telemetry", icon: BarChart3 },
-
   { name: "AI Analytics", href: "/ai-analytics", icon: Brain },
-  { name: "Maintenance", href: "/maintenance", icon: Wrench },
   { name: "Alerts", href: "/alerts", icon: AlertTriangle },
-
 ]
 
 export function Sidebar() {

@@ -9,6 +9,10 @@ import { GlassMetricCard } from "@/components/ui/glass-metric-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { ViewToggle } from "@/components/ui/view-toggle"
+import { TowerCardEnhanced } from "@/components/ui/tower-card-enhanced"
+import { TowerCardList } from "@/components/ui/tower-card-list"
+import { TowerCardCompact } from "@/components/ui/tower-card-compact"
 import { ConnectionStatusBadge, getTowerDataSource, isTowerConnected } from "@/components/ui/connection-status-badge"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ApiClient } from "@/lib/api-client"
@@ -22,6 +26,7 @@ function TowersContent() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [regionFilter, setRegionFilter] = useState("all")
   const [cardFilter, setCardFilter] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "compact">("grid")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -98,24 +103,14 @@ function TowersContent() {
   const warningTowers = towers.filter((tower) => tower.status === "warning").length
   const criticalTowers = towers.filter((tower) => tower.status === "critical").length
 
-  // Handle card click to set filter
-  const handleCardClick = (filterType: string) => {
-    if (cardFilter === filterType) {
-      // If clicking the same card, remove the filter
+  const handleCardClick = (filter: string) => {
+    if (cardFilter === filter) {
       setCardFilter(null)
-      setStatusFilter("all")
     } else {
-      // Set new card filter and update status filter accordingly
-      setCardFilter(filterType)
-      if (filterType !== "total") {
-        setStatusFilter(filterType)
-      } else {
-        setStatusFilter("all")
-      }
+      setCardFilter(filter)
     }
   }
 
-  // Clear all filters
   const clearAllFilters = () => {
     setCardFilter(null)
     setStatusFilter("all")
@@ -136,14 +131,14 @@ function TowersContent() {
     )
   }
 
-  if (error) {
+  if (error && towers.length === 0) {
     return (
       <GlassMainLayout>
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">Error Loading Towers</h2>
             <p className="text-white/60 mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
+            <Button onClick={fetchTowers}>Retry</Button>
           </div>
         </div>
       </GlassMainLayout>
@@ -154,42 +149,23 @@ function TowersContent() {
     <GlassMainLayout>
       <div className="space-y-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex items-center justify-between"
-        >
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent mb-2">
-              Towers
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              Tower Management
             </h1>
-            <p className="text-blue-50 text-lg">
-              Manage and monitor your infrastructure towers
+            <p className="text-white/60 text-lg mt-1">
+              Monitor and manage your tower infrastructure
             </p>
           </div>
-
-          <div className="flex space-x-3">
-            <Button
-              size="lg"
-              variant="outline"
-              className="bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-2xl"
-              onClick={fetchTowers}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-5 w-5 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl"
-              onClick={() => router.push("/towers/new")}
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Add Tower
-            </Button>
-          </div>
-        </motion.div>
+          <Button
+            onClick={() => router.push('/towers/new')}
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Tower
+          </Button>
+        </div>
 
         {/* Metrics Cards */}
         <motion.div
@@ -210,7 +186,6 @@ function TowersContent() {
               trend="up"
               trendValue="+2 this month"
               delay={0}
-
             />
           </div>
           
@@ -240,7 +215,6 @@ function TowersContent() {
               status={cardFilter === "warning" ? "warning" : "neutral"}
               trend="neutral"
               delay={2}
-
             />
           </div>
           
@@ -351,7 +325,7 @@ function TowersContent() {
           </div>
         </motion.div>
 
-        {/* Results Count */}
+        {/* Results Count and View Toggle */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -361,177 +335,83 @@ function TowersContent() {
           <p className="text-white/60">
             Showing {filteredTowers.length} of {totalTowers} towers
           </p>
-          {filteredTowers.length === 0 && (
-            <p className="text-yellow-400 text-sm">
-              No towers match your current filters
-            </p>
-          )}
+          <div className="flex items-center space-x-4">
+            {filteredTowers.length === 0 && (
+              <p className="text-yellow-400 text-sm">
+                No towers match your current filters
+              </p>
+            )}
+            <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          </div>
         </motion.div>
 
-        {/* Towers Grid */}
+        {/* Towers Display */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.6 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className={cn(
+            "space-y-4",
+            viewMode === "grid" && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+            viewMode === "list" && "space-y-3",
+            viewMode === "compact" && "space-y-2"
+          )}
         >
-          {filteredTowers.map((tower, index) => (
-            <motion.div
-              key={tower.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.8 + index * 0.1, duration: 0.4 }}
-              className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-500/30 to-cyan-500/30 border border-blue-400/30">
-                    <Globe className="h-6 w-6 text-blue-200" />
-                  </div>
-                  <div>
-                    <h3 
-                      className="font-bold text-white group-hover:text-blue-200 transition-colors cursor-pointer hover:text-blue-200 hover:underline"
-                      onClick={() => router.push(`/towers/${tower.id}`)}
-                    >
-                      {tower.name}
-                    </h3>
-                    <p className="text-sm text-white/60">
-                      {tower.location?.city || tower.city || "Unknown Location"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={
-                      tower.status === "online"
-                        ? "default"
-                        : tower.status === "warning"
-                          ? "secondary"
-                          : "destructive"
-                    }
-                    className="backdrop-blur-xl"
-                  >
-                    {tower.status.toUpperCase()}
-                  </Badge>
-                  <ConnectionStatusBadge
-                    isConnected={isTowerConnected(tower)}
-                    dataSource={getTowerDataSource(tower)}
-                    className="text-xs"
-                  />
-                </div>
-              </div>
+          {filteredTowers.map((tower, index) => {
+            const handleEdit = (tower: any) => {
+              router.push(`/towers/${tower.id}/edit`)
+            }
 
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/60">Use Case:</span>
-                  <span className="text-white font-medium">{tower.useCase || "N/A"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/60">Region:</span>
-                  <span className="text-white font-medium">{tower.region || "N/A"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/60">Last Maintenance:</span>
-                  <span className="text-white font-medium">
-                    {tower.lastMaintenance ? new Date(tower.lastMaintenance).toLocaleDateString() : "N/A"}
-                  </span>
-                </div>
-              </div>
+            const handleDelete = async (towerId: string) => {
+              const tower = filteredTowers.find(t => t.id === towerId)
+              if (tower && confirm(`Are you sure you want to delete "${tower.name}"? This action cannot be undone.`)) {
+                try {
+                  await ApiClient.deleteTower(towerId)
+                  await fetchTowers()
+                } catch (error) {
+                  console.error('Failed to delete tower:', error)
+                  alert('Failed to delete tower. Please try again.')
+                }
+              }
+            }
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-blue-200">
-                    {isTowerConnected(tower) ? (tower.battery || 0) : 0}%
-                  </div>
-                  <div className="text-white/60">Battery</div>
-                </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-green-200">
-                    {isTowerConnected(tower) ? (tower.temperature || 0) : 0}°C
-                  </div>
-                  <div className="text-white/60">Temperature</div>
-                </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-purple-200">
-                    {isTowerConnected(tower) ? (tower.uptime || 0) : 0}%
-                  </div>
-                  <div className="text-white/60">Uptime</div>
-                </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-orange-200">
-                    {isTowerConnected(tower) ? (tower.networkLoad || 0) : 0}%
-                  </div>
-                  <div className="text-white/60">Network</div>
-                </div>
-              </div>
+            const handleView = (towerId: string) => {
+              router.push(`/towers/${towerId}`)
+            }
 
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-2 pt-4 border-t border-white/10">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="bg-white/5 border-white/10 text-white hover:bg-white/10"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    router.push(`/towers/${tower.id}/edit`)
-                  }}
-                >
-                  <Edit className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="bg-red-500/30 border-red-500/50 text-red-100 hover:bg-red-500/50 hover:text-white font-medium"
-                  onClick={async (e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    
-                    console.log('Delete button clicked for tower:', tower.id, tower.name)
-                    
-                    if (confirm(`Are you sure you want to delete "${tower.name}"? This action cannot be undone.`)) {
-                      // Show loading state
-                      const button = e.currentTarget
-                      const originalText = button.innerHTML
-                      button.innerHTML = '<div class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1"></div>Deleting...'
-                      button.disabled = true
-                      
-                      try {
-                        console.log('Deleting tower with ID:', tower.id)
-                        
-                        const result = await ApiClient.deleteTower(tower.id)
-                        console.log('Delete API response:', result)
-                        
-                        if (result && result.success) {
-                          console.log('Tower deleted successfully, refreshing list...')
-                          
-                          // Refresh the towers list
-                          await fetchTowers()
-                          console.log('Towers list refreshed')
-                          
-                          // Show success message
-                          alert(`Tower "${tower.name}" deleted successfully!`)
-                        } else {
-                          throw new Error('Delete operation did not return success status')
-                        }
-                      } catch (err) {
-                        console.error('Failed to delete tower:', err)
-                        alert(`Failed to delete tower: ${err instanceof Error ? err.message : 'Unknown error'}`)
-                      } finally {
-                        // Reset button state
-                        button.innerHTML = originalText
-                        button.disabled = false
-                      }
-                    }
-                  }}
-                  title={`Delete ${tower.name}`}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </motion.div>
-          ))}
+            if (viewMode === "grid") {
+              return (
+                <TowerCardEnhanced
+                  key={tower.id}
+                  tower={tower}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onView={handleView}
+                  index={index}
+                />
+              )
+            } else if (viewMode === "list") {
+              return (
+                <TowerCardList
+                  key={tower.id}
+                  tower={tower}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onView={handleView}
+                  index={index}
+                />
+              )
+            } else {
+              return (
+                <TowerCardCompact
+                  key={tower.id}
+                  tower={tower}
+                  onView={handleView}
+                  index={index}
+                />
+              )
+            }
+          })}
         </motion.div>
 
         {/* Empty State */}
@@ -539,22 +419,25 @@ function TowersContent() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.6 }}
             className="text-center py-12"
           >
-            <Globe className="h-16 w-16 text-white/40 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-white mb-2">No towers found</h3>
-            <p className="text-white/60 mb-4">
-              {searchQuery || statusFilter !== "all" || regionFilter !== "all"
-                ? "Try adjusting your search or filters"
-                : "Get started by adding your first tower"}
+            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Globe className="h-12 w-12 text-white/30" />
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">No towers found</h3>
+            <p className="text-white/60 mb-6">
+              {searchQuery || statusFilter !== "all" || regionFilter !== "all" || cardFilter
+                ? "Try adjusting your filters to see more results."
+                : "Get started by adding your first tower."}
             </p>
-            {!searchQuery && statusFilter === "all" && regionFilter === "all" && (
+            {!searchQuery && statusFilter === "all" && regionFilter === "all" && !cardFilter && (
               <Button
-                onClick={() => router.push("/towers/new")}
-                className="bg-gradient-to-r from-blue-500 to-cyan-500"
+                onClick={() => router.push('/towers/new')}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add First Tower
+                Add Your First Tower
               </Button>
             )}
           </motion.div>

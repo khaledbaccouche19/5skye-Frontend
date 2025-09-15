@@ -73,19 +73,65 @@ function MaintenanceContent() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
+  // Normalize status values to handle both enum and string formats
+  const normalizeStatus = (status: string) => {
+    if (!status) return status
+    const upperStatus = status.toUpperCase()
+    switch (upperStatus) {
+      case 'SCHEDULED':
+      case 'Scheduled':
+        return 'SCHEDULED'
+      case 'COMPLETED':
+      case 'Completed':
+        return 'COMPLETED'
+      case 'IN_PROGRESS':
+      case 'In Progress':
+      case 'INPROGRESS':
+        return 'IN_PROGRESS'
+      case 'OVERDUE':
+      case 'Overdue':
+        return 'OVERDUE'
+      case 'PLANNED':
+      case 'Planned':
+        return 'PLANNED'
+      case 'CANCELLED':
+      case 'Cancelled':
+        return 'CANCELLED'
+      case 'ON_HOLD':
+      case 'On Hold':
+      case 'ONHOLD':
+        return 'ON_HOLD'
+      default:
+        return upperStatus
+    }
+  }
+
   // Fetch maintenance records
   useEffect(() => {
     const fetchMaintenanceRecords = async () => {
       try {
         setIsLoading(true)
         const records = await ApiClient.getAllMaintenance()
-        setMaintenanceRecords(records)
-        setFilteredRecords(records)
+        console.log('Fetched maintenance records:', records)
+        console.log('Records count:', records.length)
+        console.log('Record statuses:', records.map(r => r.status))
+        
+        // Normalize status values
+        const normalizedRecords = records.map(record => ({
+          ...record,
+          status: normalizeStatus(record.status)
+        }))
+        
+        console.log('Normalized statuses:', normalizedRecords.map(r => r.status))
+        setMaintenanceRecords(normalizedRecords)
+        setFilteredRecords(normalizedRecords)
       } catch (error) {
         console.error('Failed to fetch maintenance records:', error)
         // Fallback to dummy data
-        setMaintenanceRecords(getDummyMaintenanceData())
-        setFilteredRecords(getDummyMaintenanceData())
+        const dummyData = getDummyMaintenanceData()
+        console.log('Using dummy data:', dummyData)
+        setMaintenanceRecords(dummyData)
+        setFilteredRecords(dummyData)
       } finally {
         setIsLoading(false)
       }
@@ -261,6 +307,8 @@ function MaintenanceContent() {
                     {maintenanceRecords.filter(r => r.status === "SCHEDULED").length}
                   </p>
                   <p className="text-white/60 text-sm">Scheduled</p>
+                  <p className="text-xs text-white/40">Total: {maintenanceRecords.length}</p>
+                  <p className="text-xs text-white/40">Statuses: {maintenanceRecords.map(r => r.status).join(', ')}</p>
                 </div>
         </div>
             </CardContent>
@@ -402,7 +450,11 @@ function MaintenanceContent() {
             </Card>
           ) : (
             filteredRecords.map((record) => (
-              <Card key={record.id} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+              <Card 
+                key={record.id} 
+                className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer"
+                onClick={() => handleViewDetails(record)}
+              >
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -519,6 +571,10 @@ function MaintenanceContent() {
                 onViewTower={() => {
                   setIsDetailsOpen(false)
                   handleViewTower(selectedRecord)
+                }}
+                onStatusUpdate={() => {
+                  // Refresh the maintenance records when status is updated
+                  fetchMaintenanceRecords()
                 }}
               />
             )}

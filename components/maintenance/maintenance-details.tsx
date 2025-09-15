@@ -14,7 +14,6 @@ import {
   Mail,
   MapPin,
   RefreshCw,
-  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,10 +24,9 @@ interface MaintenanceDetailsProps {
   maintenance: any
   onEdit: () => void
   onDelete: () => void
-  onViewTower?: () => void
 }
 
-export function MaintenanceDetails({ maintenance, onEdit, onDelete, onViewTower }: MaintenanceDetailsProps) {
+export function MaintenanceDetails({ maintenance, onEdit, onDelete }: MaintenanceDetailsProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "COMPLETED": return "bg-green-500"
@@ -102,17 +100,6 @@ export function MaintenanceDetails({ maintenance, onEdit, onDelete, onViewTower 
           )}
         </div>
         <div className="flex space-x-2">
-          {onViewTower && (
-            <Button
-              onClick={onViewTower}
-              variant="outline"
-              size="sm"
-              className="bg-blue-500/20 border-blue-500/30 text-blue-400 hover:bg-blue-500/30 rounded-2xl"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View Tower
-            </Button>
-          )}
           <Button
             onClick={onEdit}
             variant="outline"
@@ -158,17 +145,7 @@ export function MaintenanceDetails({ maintenance, onEdit, onDelete, onViewTower 
             </div>
             <div>
               <p className="text-white/60 text-sm">Tower</p>
-              {onViewTower ? (
-                <button
-                  onClick={onViewTower}
-                  className="text-blue-400 hover:text-blue-300 font-medium flex items-center space-x-1 transition-colors"
-                >
-                  <span>{maintenance.towerName}</span>
-                  <ExternalLink className="h-3 w-3" />
-                </button>
-              ) : (
-                <p className="text-white font-medium">{maintenance.towerName}</p>
-              )}
+              <p className="text-white font-medium">{maintenance.towerName}</p>
             </div>
             {maintenance.isRecurring && (
               <div className="flex items-center space-x-2">

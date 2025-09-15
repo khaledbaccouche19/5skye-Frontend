@@ -4,6 +4,7 @@ import { X, Battery, Thermometer, Wifi, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MetricCard } from "./metric-card"
+import { isTowerConnected } from "./connection-status-badge"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
@@ -42,12 +43,16 @@ export function TowerDrawer({ tower, isOpen, onClose }: TowerDrawerProps) {
   }
 
   const getBatteryStatus = (battery: number) => {
+    // If tower is disconnected, always show error status
+    if (!isTowerConnected(tower)) return "error"
     if (battery > 50) return "success"
     if (battery > 20) return "warning"
     return "error"
   }
 
   const getTemperatureStatus = (temp: number) => {
+    // If tower is disconnected, always show error status
+    if (!isTowerConnected(tower)) return "error"
     if (temp < 45) return "success"
     if (temp < 55) return "warning"
     return "error"
@@ -94,7 +99,7 @@ export function TowerDrawer({ tower, isOpen, onClose }: TowerDrawerProps) {
             <div className="grid grid-cols-2 gap-3">
               <MetricCard
                 title="Battery"
-                value={tower.battery}
+                value={isTowerConnected(tower) ? tower.battery : 0}
                 unit="%"
                 icon={Battery}
                 status={getBatteryStatus(tower.battery)}
@@ -102,7 +107,7 @@ export function TowerDrawer({ tower, isOpen, onClose }: TowerDrawerProps) {
               />
               <MetricCard
                 title="Temperature"
-                value={tower.temperature}
+                value={isTowerConnected(tower) ? tower.temperature : 0}
                 unit="°C"
                 icon={Thermometer}
                 status={getTemperatureStatus(tower.temperature)}
@@ -110,18 +115,18 @@ export function TowerDrawer({ tower, isOpen, onClose }: TowerDrawerProps) {
               />
               <MetricCard
                 title="Uptime"
-                value={tower.uptime}
+                value={isTowerConnected(tower) ? tower.uptime : 0}
                 unit="%"
                 icon={Activity}
-                status="success"
+                status={isTowerConnected(tower) ? "success" : "error"}
                 className="text-xs"
               />
               <MetricCard
                 title="Network Load"
-                value={tower.networkLoad}
+                value={isTowerConnected(tower) ? tower.networkLoad : 0}
                 unit="%"
                 icon={Wifi}
-                status={tower.networkLoad > 80 ? "warning" : "success"}
+                status={isTowerConnected(tower) ? (tower.networkLoad > 80 ? "warning" : "success") : "error"}
                 className="text-xs"
               />
             </div>
