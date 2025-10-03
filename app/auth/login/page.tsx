@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
 
   const [loginForm, setLoginForm] = useState({
-    email: "admin@intellitwin.com",
+    username: "admin",
     password: "demo123",
   })
 
@@ -25,13 +25,13 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
 
-    if (!loginForm.email.trim() || !loginForm.password.trim()) {
-      setError("Please enter both email and password")
+    if (!loginForm.username.trim() || !loginForm.password.trim()) {
+      setError("Please enter both username and password")
       return
     }
 
     try {
-      const success = await login(loginForm.email, loginForm.password)
+      const success = await login(loginForm.username, loginForm.password)
       if (!success) {
         setError("Login failed. Please try again.")
       }
@@ -203,17 +203,17 @@ export default function LoginPage() {
                 <CardContent className="space-y-6">
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-blue-50 text-sm font-medium">
-                        Email Address
+                      <Label htmlFor="username" className="text-blue-50 text-sm font-medium">
+                        Username
                       </Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
-                          id="email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={loginForm.email}
-                          onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                          id="username"
+                          type="text"
+                          placeholder="Enter your username"
+                          value={loginForm.username}
+                          onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                           className="pl-10 bg-slate-600/50 backdrop-blur-xl border-slate-500/40 text-blue-50 placeholder:text-slate-400 rounded-2xl focus:border-blue-500/50 focus:ring-blue-500/20"
                           required
                         />
@@ -293,8 +293,8 @@ export default function LoginPage() {
                       <p className="text-slate-300 text-sm mb-3">Use any email and password to access the demo.</p>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Email:</span>
-                          <span className="text-blue-50">admin@intellitwin.com</span>
+                          <span className="text-slate-400">Username:</span>
+                          <span className="text-blue-50">admin</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Password:</span>
@@ -303,7 +303,7 @@ export default function LoginPage() {
                       </div>
                       <Button
                         variant="outline"
-                        onClick={() => setLoginForm({ email: "admin@intellitwin.com", password: "demo123" })}
+                        onClick={() => setLoginForm({ username: "admin", password: "demo123" })}
                         className="w-full mt-3 bg-slate-600/50 backdrop-blur-xl border-slate-500/40 text-blue-50 hover:bg-slate-500/50 rounded-2xl"
                         size="sm"
                       >

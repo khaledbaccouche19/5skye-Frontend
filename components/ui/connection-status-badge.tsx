@@ -28,7 +28,7 @@ export function ConnectionStatusBadge({
     switch (dataSource) {
       case 'real-world':
         return {
-          label: "Real-World",
+          label: "Connected",
           variant: "default" as const,
           icon: Globe,
           description: "Connected to real tower data"
@@ -79,15 +79,17 @@ export function ConnectionStatusBadge({
 export function getTowerDataSource(tower: any): 'real-world' | 'simulator' | 'fallback' {
   // Check if tower has an API endpoint configured
   if (tower?.apiEndpointUrl) {
-    // Check if it's pointing to the simulator (port 8080 or contains simulator)
-    if (tower.apiEndpointUrl.includes(':8080') || 
-        tower.apiEndpointUrl.includes('localhost:8080') ||
-        tower.apiEndpointUrl.includes('simulator') ||
-        tower.apiEndpointUrl.includes('telemetry-simulator')) {
-      return 'simulator'
+    // All data now goes through backend (port 8088)
+    if (tower.apiEndpointUrl.includes('localhost:8088') || 
+        tower.apiEndpointUrl.includes(':8088')) {
+      return 'real-world' // Backend proxy
     }
-    // Otherwise it's a real-world endpoint
-    return 'real-world'
+    // Check for other real-world endpoints
+    if (tower.apiEndpointUrl.includes('api.') || 
+        tower.apiEndpointUrl.includes('telemetry') ||
+        tower.apiEndpointUrl.includes('tower')) {
+      return 'real-world'
+    }
   }
   
   // No API endpoint means it's using fallback/static data

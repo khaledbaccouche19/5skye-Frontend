@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { ApiClient } from "@/lib/api-client"
 import { buildUrl, config } from "@/lib/config"
 import { motion } from "framer-motion"
@@ -38,6 +39,12 @@ export default function NewTowerPage() {
     lastMaintenance: "",
     apiEndpointUrl: "",
     apiKey: "",
+    refreshIntervalMs: 2000,
+    // SiteBoss Configuration
+    sitebossEnabled: false,
+    sitebossHost: "10.9.1.19",
+    sitebossUsername: "admin",
+    sitebossPassword: "password",
   })
 
   // 3D Model upload state
@@ -46,7 +53,7 @@ export default function NewTowerPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -164,16 +171,16 @@ export default function NewTowerPage() {
       
       if (result.success) {
         setConnectionStatus("success")
-        console.log('✅ Connection test successful for:', formData.apiEndpointUrl)
+        console.log('Connection test successful for:', formData.apiEndpointUrl)
         
-        // Now fetch the actual data to show in preview
+        // Test backend connection (all data now goes through backend)
         try {
-          const data = await ApiClient.fetchTelemetryData(formData.apiEndpointUrl, formData.apiKey)
-          setFetchedData(data)
-          console.log('✅ Fetched telemetry data:', data)
+          const data = await ApiClient.testConnection(formData.apiEndpointUrl, formData.apiKey)
+          setFetchedData({ message: 'Backend connection successful', status: 'SUCCESSFUL' })
+          console.log('Backend connection test successful:', data)
         } catch (dataError: any) {
-          setDataFetchError(`Connection successful but failed to fetch data: ${dataError.message}`)
-          console.warn('⚠️ Connection test passed but data fetch failed:', dataError)
+          setDataFetchError(`Backend connection failed: ${dataError.message}`)
+          console.warn('⚠️ Backend connection test failed:', dataError)
         }
       } else {
         setConnectionStatus("error")
@@ -181,20 +188,67 @@ export default function NewTowerPage() {
       }
     } catch (err: any) {
       setConnectionStatus("error")
-      console.error('❌ Connection test failed:', err)
+      console.error('Connection test failed:', err)
       
       // Better error detection and messages
       if (err.message.includes('Failed to fetch')) {
-        setError('❌ Connection failed: Unable to reach the API endpoint. Please check if the backend is running and the URL is correct.')
+        setError('Connection failed: Unable to reach the API endpoint. Please check if the backend is running and the URL is correct.')
       } else if (err.message.includes('CORS')) {
-        setError('❌ CORS error: The API endpoint does not allow cross-origin requests.')
+        setError('CORS error: The API endpoint does not allow cross-origin requests.')
       } else if (err.message.includes('Connection failed')) {
-        setError(`❌ ${err.message}`)
+        setError(`${err.message}`)
       } else if (err.message.includes('NetworkError')) {
-        setError('❌ Network error: The backend server is not running or unreachable.')
+        setError('Network error: The backend server is not running or unreachable.')
       } else {
-        setError(`❌ Connection failed: ${err.message}`)
+        setError(`Connection failed: ${err.message}`)
       }
+    } finally {
+      setIsTestingConnection(false)
+    }
+  }
+
+  const testSiteBossConnection = async () => {
+    if (!formData.sitebossHost || !formData.sitebossUsername || !formData.sitebossPassword) {
+      setError('Please fill in all SiteBoss configuration fields')
+      return
+    }
+
+    setIsTestingConnection(true)
+    setConnectionStatus("idle")
+    setError(null)
+    setFetchedData(null)
+
+    try {
+      // Test SiteBoss connection through backend
+      const response = await fetch(buildUrl.api('/siteboss/pull'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          host: formData.sitebossHost,
+          username: formData.sitebossUsername,
+          password: formData.sitebossPassword,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setConnectionStatus("success")
+          setError(null)
+          setFetchedData(data) // Store the pulled data for preview
+        } else {
+          setError(`SiteBoss connection failed: ${data.error}`)
+          setConnectionStatus("error")
+        }
+      } else {
+        setError(`HTTP ${response.status}: ${response.statusText}`)
+        setConnectionStatus("error")
+      }
+    } catch (error: any) {
+      setError(`SiteBoss connection error: ${error.message}`)
+      setConnectionStatus("error")
     } finally {
       setIsTestingConnection(false)
     }
@@ -203,7 +257,7 @@ export default function NewTowerPage() {
   const populateFormWithTelemetryData = () => {
     if (!fetchedData) return
 
-    console.log('🔄 Populating form with telemetry data:', fetchedData)
+    console.log('Populating form with telemetry data:', fetchedData)
 
     // Update form data with fetched telemetry values
     setFormData(prev => ({
@@ -216,7 +270,7 @@ export default function NewTowerPage() {
       networkLoad: fetchedData.networkLoad !== null ? fetchedData.networkLoad.toString() : prev.networkLoad,
     }))
 
-    console.log('✅ Form populated with telemetry data')
+    console.log('Form populated with telemetry data')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -301,6 +355,12 @@ export default function NewTowerPage() {
         model3dPath: modelUrl, // Use the correct backend field name (camelCase)
         apiEndpointUrl: formData.apiEndpointUrl || null,
         apiKey: formData.apiKey || null,
+        refreshIntervalMs: formData.refreshIntervalMs ? parseInt(String(formData.refreshIntervalMs)) : null,
+        // SiteBoss Configuration
+        sitebossEnabled: formData.sitebossEnabled,
+        sitebossHost: formData.sitebossEnabled ? formData.sitebossHost : null,
+        sitebossUsername: formData.sitebossEnabled ? formData.sitebossUsername : null,
+        sitebossPassword: formData.sitebossEnabled ? formData.sitebossPassword : null,
       }
 
       console.log('Sending tower data to backend:', towerData)
@@ -608,6 +668,158 @@ export default function NewTowerPage() {
             </div>
           </div>
 
+          {/* SiteBoss Configuration */}
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <Activity className="h-6 w-6 text-green-400" />
+              <h2 className="text-2xl font-bold text-white">SiteBoss Integration (Optional)</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-white/60 text-sm">
+                Configure SiteBoss device integration for real-time monitoring data. 
+                This will enable live sensor data from your SiteBoss tower monitoring device.
+              </p>
+              
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                <div className="space-y-1">
+                  <Label htmlFor="sitebossEnabled" className="text-white/80 font-medium">Enable SiteBoss Integration</Label>
+                  <p className="text-white/60 text-sm">Connect to real SiteBoss monitoring devices</p>
+                </div>
+                <Switch
+                  id="sitebossEnabled"
+                  checked={formData.sitebossEnabled}
+                  onCheckedChange={(checked) => handleInputChange("sitebossEnabled", checked)}
+                />
+              </div>
+
+              {formData.sitebossEnabled && (
+                <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sitebossHost" className="text-white/80">Device Host/IP *</Label>
+                      <Input
+                        id="sitebossHost"
+                        value={formData.sitebossHost}
+                        onChange={(e) => handleInputChange("sitebossHost", e.target.value)}
+                        placeholder="10.9.1.19"
+                        className="bg-white/5 border-white/10 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sitebossUsername" className="text-white/80">Username *</Label>
+                      <Input
+                        id="sitebossUsername"
+                        value={formData.sitebossUsername}
+                        onChange={(e) => handleInputChange("sitebossUsername", e.target.value)}
+                        placeholder="admin"
+                        className="bg-white/5 border-white/10 text-white"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="sitebossPassword" className="text-white/80">Password *</Label>
+                    <Input
+                      id="sitebossPassword"
+                      type="password"
+                      value={formData.sitebossPassword}
+                      onChange={(e) => handleInputChange("sitebossPassword", e.target.value)}
+                      placeholder="password"
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={testSiteBossConnection}
+                      disabled={isTestingConnection}
+                      className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                    >
+                      {isTestingConnection ? "Testing..." : "Test Connection"}
+                    </Button>
+                    {connectionStatus === "success" && (
+                      <span className="text-green-400 text-sm">✓ Connection successful</span>
+                    )}
+                    {connectionStatus === "error" && (
+                      <span className="text-red-400 text-sm">✗ Connection failed</span>
+                    )}
+                  </div>
+
+                  {/* SiteBoss Data Preview */}
+                  {fetchedData && fetchedData.success && (
+                    <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <h4 className="text-green-400 font-medium">SiteBoss Data Retrieved Successfully</h4>
+                      </div>
+                      
+                      <div className="space-y-3 text-sm">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-white/60">Site Name:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.siteName || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Serial:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.serial || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Version:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.version || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Uptime:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.uptime || 'N/A'}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-white/60">Total Sensors:</span>
+                            <span className="text-white ml-2">{fetchedData.sensorCount || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Last Update:</span>
+                            <span className="text-white ml-2">{fetchedData.timestamp ? new Date(fetchedData.timestamp).toLocaleString() : 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        {fetchedData.data?.sensors && fetchedData.data.sensors.length > 0 && (
+                          <div className="mt-3">
+                            <span className="text-white/60">Sample Sensors:</span>
+                            <div className="mt-2 space-y-1">
+                              {fetchedData.data.sensors.slice(0, 3).map((sensor: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between text-xs">
+                                  <span className="text-white/80">{sensor.name || `Sensor ${index + 1}`}</span>
+                                  <span className={`px-2 py-1 rounded ${
+                                    sensor.status === 'normal' ? 'bg-green-500/20 text-green-400' :
+                                    sensor.status === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-red-500/20 text-red-400'
+                                  }`}>
+                                    {sensor.status || 'unknown'}
+                                  </span>
+                                </div>
+                              ))}
+                              {fetchedData.data.sensors.length > 3 && (
+                                <div className="text-white/60 text-xs">
+                                  +{fetchedData.data.sensors.length - 3} more sensors...
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* 3D Model Upload */}
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
@@ -711,7 +923,7 @@ export default function NewTowerPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8080/api/telemetry/live")}
+                      onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8081/api/telemetry/live")}
                       className="whitespace-nowrap"
                     >
                       Use Simulator
@@ -729,6 +941,25 @@ export default function NewTowerPage() {
                     placeholder="sk_live_abc123def456ghi789"
                     className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="refreshIntervalMs" className="text-white/80">Default Refresh Rate</Label>
+                  <Select
+                    value={String(formData.refreshIntervalMs)}
+                    onValueChange={(v) => handleInputChange("refreshIntervalMs", v)}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white/10 border-white/20">
+                      <SelectItem value="1000">Every 1s</SelectItem>
+                      <SelectItem value="2000">Every 2s</SelectItem>
+                      <SelectItem value="5000">Every 5s</SelectItem>
+                      <SelectItem value="10000">Every 10s</SelectItem>
+                      <SelectItem value="30000">Every 30s</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -752,13 +983,13 @@ export default function NewTowerPage() {
               {/* Connection Status Feedback */}
               {connectionStatus === "success" && (
                 <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4 text-green-200 text-center">
-                  ✅ Connection successful! The API endpoint is accessible.
+                  Connection successful! The API endpoint is accessible.
                 </div>
               )}
               
               {connectionStatus === "error" && (
                 <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 text-red-200 text-center">
-                  ❌ Connection failed. Please check the URL and API key.
+                  Connection failed. Please check the URL and API key.
                 </div>
               )}
 

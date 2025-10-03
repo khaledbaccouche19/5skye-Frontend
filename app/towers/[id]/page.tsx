@@ -22,15 +22,19 @@ import {
   Plus,
   Wrench,
   DollarSign,
+  Brain,
+  RefreshCw,
 } from "lucide-react"
 import { GlassMainLayout } from "@/components/layout/glass-main-layout"
 import { GlassMetricCard } from "@/components/ui/glass-metric-card"
 import { AlertItem } from "@/components/ui/alert-item"
 import { HardwareManagement } from "@/components/ui/hardware-management"
-import { AlertThresholds } from "@/components/ui/alert-thresholds"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -39,10 +43,10 @@ import { Tower3DViewer } from "@/components/ui/tower-3d-viewer"
 import { ConnectionStatusBadge, getTowerDataSource, isTowerConnected } from "@/components/ui/connection-status-badge"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { InlineMaintenanceForm } from "@/components/maintenance/inline-maintenance-form"
-import { MaintenanceAnalytics } from "@/components/maintenance/maintenance-analytics"
 import { MaintenanceDetails } from "@/components/maintenance/maintenance-details"
+import { SiteBossDataDisplay } from "@/components/siteboss/siteboss-data-display"
 import { useTowers } from "@/lib/towers-context"
-import { ApiClient } from "@/lib/api-client"
+import { ApiClient, type PredictiveInsightDTO } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 
 function TowerDetailsContent() {
@@ -53,14 +57,18 @@ function TowerDetailsContent() {
 
   const [tower, setTower] = useState<any>(null)
   const [hardwareComponents, setHardwareComponents] = useState<any[]>([])
-  const [alertThresholds, setAlertThresholds] = useState<any[]>([])
-  const [towerAlerts, setTowerAlerts] = useState<any[]>([])
+  // const [alertThresholds, setAlertThresholds] = useState<any[]>([])
+  // const [towerAlerts, setTowerAlerts] = useState<any[]>([])
   const [telemetryData, setTelemetryData] = useState<any[]>([])
   const [liveTelemetryData, setLiveTelemetryData] = useState<any>(null)
   const [maintenanceRecords, setMaintenanceRecords] = useState<any[]>([])
+  const [predictions, setPredictions] = useState<PredictiveInsightDTO[] | null>(null)
+  const [isLoadingPredictions, setIsLoadingPredictions] = useState(false)
+  const [predictionsError, setPredictionsError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshingTelemetry, setIsRefreshingTelemetry] = useState(false)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
+  const [refreshMs, setRefreshMs] = useState<number>(2000)
   const [error, setError] = useState<string | null>(null)
   const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null)
   const [isMaintenanceDetailsOpen, setIsMaintenanceDetailsOpen] = useState(false)
@@ -105,59 +113,63 @@ function TowerDetailsContent() {
 
         // Fetch tower details
         const towerData = await ApiClient.getTowerById(towerId)
-        console.log('Tower details received:', towerData)
+        console.log('🔄 Tower details refreshed:', towerData)
+        console.log('🔧 SiteBoss config:', {
+          enabled: towerData.sitebossEnabled,
+          host: towerData.sitebossHost,
+          username: towerData.sitebossUsername,
+          password: towerData.sitebossPassword
+        })
+        console.log('📋 All tower properties:', Object.keys(towerData))
         setTower(towerData)
 
         // Fetch hardware components
         const hardwareData = await ApiClient.getHardwareByTower(towerId)
         setHardwareComponents(hardwareData)
 
-        // Fetch alert thresholds
-        const thresholdsData = await ApiClient.getThresholdsByTower(towerId)
-        setAlertThresholds(thresholdsData)
+        // Thresholds feature removed per request
 
-        // Fetch telemetry data
-        const telemetryData = await ApiClient.getTelemetryByTower(towerId)
-        setTelemetryData(telemetryData)
+        // Fetch live telemetry data through backend proxy
+        try {
+          const liveData = await ApiClient.fetchTelemetryData(parseInt(towerId))
+          console.log('Live telemetry data fetched through backend:', liveData)
+          console.log('Live telemetry data type:', typeof liveData, 'Array?', Array.isArray(liveData))
+          if (Array.isArray(liveData) && liveData.length > 0) {
+            console.log('First telemetry entry:', liveData[0])
+          }
+          setLiveTelemetryData(liveData)
+        } catch (liveError) {
+          console.warn('Warning: Failed to fetch live telemetry data:', liveError)
+          // Don't set error state for live data failures, just log it
+        }
+
+        // Fetch stored telemetry data from backend database
+        try {
+          const telemetryData = await ApiClient.getTelemetryByTower(towerId)
+          setTelemetryData(telemetryData)
+          console.log('Stored telemetry data fetched from backend database:', telemetryData)
+        } catch (telemetryError) {
+          console.warn('Warning: Failed to fetch stored telemetry data:', telemetryError)
+        }
 
         // Fetch maintenance records
         const maintenanceData = await ApiClient.getMaintenanceByTowerId(towerId)
         setMaintenanceRecords(maintenanceData)
 
-        // Fetch live telemetry data if API endpoint is configured
-        if (towerData.apiEndpointUrl) {
-          try {
-            const liveData = await ApiClient.fetchTelemetryData(towerData.apiEndpointUrl, towerData.apiKey)
-            setLiveTelemetryData(liveData)
-            console.log('✅ Live telemetry data fetched:', liveData)
-          } catch (liveError) {
-            console.warn('⚠️ Failed to fetch live telemetry data:', liveError)
-            // Don't set error state for live data failures, just log it
-          }
+        // Fetch predictive insights
+        try {
+          setIsLoadingPredictions(true)
+          const preds = await ApiClient.getPredictions(towerId)
+          setPredictions(preds)
+        } catch (predErr: any) {
+          console.warn('⚠️ Failed to fetch predictions:', predErr)
+          setPredictionsError(predErr?.message || 'Failed to load predictions')
+          setPredictions([])
+        } finally {
+          setIsLoadingPredictions(false)
         }
 
-        // For now, keep alerts as dummy data since we need to filter by tower
-        // TODO: Add API endpoint for tower-specific alerts
-        setTowerAlerts([
-          {
-            id: "ALT-001",
-            timestamp: "2024-01-16T10:30:00Z",
-            message: "Battery level critically low",
-            severity: "critical",
-            towerId: towerId,
-            towerName: towerData?.name || "Unknown Tower",
-            resolved: false,
-          },
-          {
-            id: "ALT-002",
-            timestamp: "2024-01-16T09:15:00Z",
-            message: "High network load detected",
-            severity: "warning",
-            towerId: towerId,
-            towerName: towerData?.name || "Unknown Tower",
-            resolved: false,
-          },
-        ])
+        // Alerts feature removed per request
 
       } catch (err) {
         console.error('Failed to fetch tower data:', err)
@@ -203,28 +215,7 @@ function TowerDetailsContent() {
               },
             },
           ])
-          setAlertThresholds([
-            {
-              id: "THRESH-001",
-              name: "High Temperature Alert",
-              metric: "temperature" as const,
-              condition: "greater_than" as const,
-              value: 50,
-              severity: "critical" as const,
-              enabled: true,
-              description: "Alert when temperature exceeds 50°C",
-            },
-            {
-              id: "THRESH-002",
-              name: "Low Battery Warning",
-              metric: "battery" as const,
-              condition: "less_than" as const,
-              value: 20,
-              severity: "warning" as const,
-              enabled: true,
-              description: "Warning when battery drops below 20%",
-            },
-          ])
+          // Thresholds demo data removed per request
           setTelemetryData([
             { time: "00:00", voltage: 12.4, temperature: 42, bandwidth: 65 },
             { time: "04:00", voltage: 12.1, temperature: 38, bandwidth: 45 },
@@ -246,33 +237,60 @@ function TowerDetailsContent() {
 
   // Define refreshTelemetryData as useCallback to avoid dependency issues
   const refreshTelemetryData = useCallback(async () => {
-    if (!tower?.apiEndpointUrl) {
-      console.warn('No API endpoint configured for this tower')
-      return
-    }
-
     setIsRefreshingTelemetry(true)
     try {
-      const liveData = await ApiClient.fetchTelemetryData(tower.apiEndpointUrl, tower.apiKey)
+      const liveData = await ApiClient.fetchTelemetryData(parseInt(towerId))
       setLiveTelemetryData(liveData)
-      console.log('✅ Telemetry data refreshed:', liveData)
+      console.log('Telemetry data refreshed:', liveData)
     } catch (error) {
-      console.error('❌ Failed to refresh telemetry data:', error)
+      console.error('Error: Failed to refresh telemetry data:', error)
     } finally {
       setIsRefreshingTelemetry(false)
     }
-  }, [tower?.apiEndpointUrl, tower?.apiKey])
+  }, [towerId])
 
-  // Auto-refresh telemetry data every 2 seconds
+  // Auto-refresh telemetry data with configurable interval
   useEffect(() => {
-    if (!autoRefreshEnabled || !tower?.apiEndpointUrl) return
+    // Use tower preferred refresh if available
+    if (tower?.refreshIntervalMs && Number.isFinite(tower.refreshIntervalMs)) {
+      setRefreshMs(tower.refreshIntervalMs)
+    }
+  }, [tower?.refreshIntervalMs])
+
+  useEffect(() => {
+    if (!autoRefreshEnabled) return
 
     const interval = setInterval(() => {
       refreshTelemetryData()
-    }, 2000) // 2 seconds
+    }, refreshMs)
 
     return () => clearInterval(interval)
-  }, [autoRefreshEnabled, tower?.apiEndpointUrl, refreshTelemetryData])
+  }, [autoRefreshEnabled, refreshMs, refreshTelemetryData])
+
+  // Refresh data when page becomes visible (e.g., returning from edit page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && tower) {
+        console.log('🔄 Page became visible, refreshing tower data...')
+        // Re-fetch tower data to get latest changes
+        ApiClient.getTowerById(towerId).then(towerData => {
+          console.log('🔄 Tower data refreshed on visibility change:', towerData)
+          console.log('🔧 Updated SiteBoss config:', {
+            enabled: towerData.sitebossEnabled,
+            host: towerData.sitebossHost,
+            username: towerData.sitebossUsername,
+            password: towerData.sitebossPassword
+          })
+          setTower(towerData)
+        }).catch(err => {
+          console.error('❌ Failed to refresh tower data:', err)
+        })
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [towerId, tower])
 
   if (isLoading) {
     return (
@@ -354,9 +372,11 @@ function TowerDetailsContent() {
       // Handle array data structure (take the first/latest entry)
       const data = Array.isArray(liveTelemetryData) ? liveTelemetryData[0] : liveTelemetryData
       if (data && data[field] !== null && data[field] !== undefined) {
+        console.log(`Using live telemetry data for ${field}:`, data[field])
         return data[field]
       }
     }
+    console.log(`Falling back to tower static data for ${field}:`, tower[field] || 0)
     return tower[field] || 0
   }
 
@@ -413,6 +433,30 @@ function TowerDetailsContent() {
             </Button>
             <Button 
               size="sm" 
+              variant="outline"
+              className="border-white/10 hover:bg-white/5 rounded-2xl"
+              onClick={async () => {
+                console.log('🔄 Manually refreshing tower data...')
+                try {
+                  const towerData = await ApiClient.getTowerById(towerId)
+                  console.log('🔄 Manual refresh - Tower data:', towerData)
+                  console.log('🔧 Manual refresh - SiteBoss config:', {
+                    enabled: towerData.sitebossEnabled,
+                    host: towerData.sitebossHost,
+                    username: towerData.sitebossUsername,
+                    password: towerData.sitebossPassword
+                  })
+                  setTower(towerData)
+                } catch (err) {
+                  console.error('❌ Failed to refresh tower data:', err)
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              size="sm" 
               className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl"
               onClick={() => router.push(`/towers/${towerId}/edit`)}
             >
@@ -421,6 +465,8 @@ function TowerDetailsContent() {
             </Button>
           </div>
         </div>
+
+        {/* Quick Info Strip removed per request */}
 
         {/* 3D Visualization */}
         <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 mb-8">
@@ -433,11 +479,18 @@ function TowerDetailsContent() {
           </div>
         </div>
 
-        {/* Live Metrics Section */}
-        <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-8">
+        {/* Live Metrics Section (collapsible) */}
+        <Accordion type="multiple" className="space-y-4">
+          <AccordionItem value="live-metrics" className="border-none">
+            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+              <AccordionTrigger className="px-6">
+                <div className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-3">
-              <h3 className="text-2xl font-bold text-slate-50">Live Metrics</h3>
+                    <div className="p-3 bg-purple-500/20 rounded-xl">
+                      <Activity className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <span className="text-2xl font-bold text-white tracking-tight">Live Metrics</span>
+                  </div>
               {liveTelemetryData && (
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -445,14 +498,17 @@ function TowerDetailsContent() {
                 </div>
               )}
             </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                <div className="px-6 pb-6 pt-2">
             {tower?.apiEndpointUrl && (
-              <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-end space-x-2 mb-6">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={refreshTelemetryData}
                   disabled={isRefreshingTelemetry}
-                  className="bg-slate-600/40 border-slate-500/40 text-slate-100 hover:bg-slate-500/40 rounded-2xl"
+                  className="bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-2xl"
                 >
                   {isRefreshingTelemetry ? (
                     <div className="w-4 h-4 border-2 border-slate-300/30 border-t-slate-300 rounded-full animate-spin mr-2" />
@@ -465,7 +521,7 @@ function TowerDetailsContent() {
                   variant="outline"
                   size="sm"
                   onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-                  className={`bg-slate-600/40 border-slate-500/40 text-slate-100 hover:bg-slate-500/40 rounded-2xl ${
+                  className={`bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-2xl ${
                     autoRefreshEnabled ? 'bg-green-500/20 border-green-500/30' : ''
                   }`}
                 >
@@ -474,66 +530,89 @@ function TowerDetailsContent() {
                   }`} />
                   Auto
                 </Button>
+                      <div className="ml-2">
+                        <Select
+                          value={String(refreshMs)}
+                          onValueChange={(v) => setRefreshMs(parseInt(v))}
+                        >
+                          <SelectTrigger className="w-32 bg-white/5 border-white/10 text-white rounded-2xl h-8">
+                            <SelectValue placeholder="Refresh">
+                              {refreshMs === 1000 ? 'Every 1s' :
+                               refreshMs === 2000 ? 'Every 2s' :
+                               refreshMs === 5000 ? 'Every 5s' :
+                               refreshMs === 10000 ? 'Every 10s' :
+                               refreshMs === 30000 ? 'Every 30s' :
+                               `Every ${refreshMs/1000}s`}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-900/90 backdrop-blur-xl border-white/10 text-white">
+                            <SelectItem value="1000">Every 1s</SelectItem>
+                            <SelectItem value="2000">Every 2s</SelectItem>
+                            <SelectItem value="5000">Every 5s</SelectItem>
+                            <SelectItem value="10000">Every 10s</SelectItem>
+                            <SelectItem value="30000">Every 30s</SelectItem>
+                          </SelectContent>
+                        </Select>
               </div>
-            )}
           </div>
+                  )}
           
           <div className="space-y-8">
             {/* System Health Section */}
             <div className="space-y-6">
-              <h4 className="text-xl font-semibold text-slate-50 uppercase tracking-wide">System Health</h4>
+              <h4 className="text-xl font-semibold text-white uppercase tracking-wide">System Health</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Battery className="h-6 w-6 text-green-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {Math.round(getCurrentTelemetryValue('battery') * 10) / 10}%
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Battery Level</div>
+                  <div className="text-sm text-white/70 mb-2">Battery Level</div>
                   <div className="flex items-center text-green-400 text-sm">
                     <Activity className="h-3 w-3 mr-1" />
                     +5% from yesterday
               </div>
             </div>
             
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Thermometer className="h-6 w-6 text-red-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('temperature')}°C
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Temperature</div>
+                  <div className="text-sm text-white/70 mb-2">Temperature</div>
                   <div className="flex items-center text-red-400 text-sm">
                     <Activity className="h-3 w-3 mr-1 rotate-180" />
                     -2°C from yesterday
                   </div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Wifi className="h-6 w-6 text-blue-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {Math.round(getCurrentTelemetryValue('networkLoad') * 10) / 10}%
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Network Load</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Network Load</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Activity className="h-6 w-6 text-green-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {Math.round(getCurrentTelemetryValue('uptime') * 10) / 10}%
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Uptime</div>
+                  <div className="text-sm text-white/70 mb-2">Uptime</div>
                   <div className="flex items-center text-green-400 text-sm">
                     <Activity className="h-3 w-3 mr-1" />
                     +0.2% this week
@@ -544,283 +623,272 @@ function TowerDetailsContent() {
             
             {/* Environmental Section */}
             <div className="space-y-6">
-              <h4 className="text-xl font-semibold text-slate-50 uppercase tracking-wide">Environmental</h4>
+              <h4 className="text-xl font-semibold text-white uppercase tracking-wide">Environmental</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Droplets className="h-6 w-6 text-blue-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {Math.round(getCurrentTelemetryValue('humidity') * 10) / 10}%
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Humidity</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Humidity</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Wind className="h-6 w-6 text-cyan-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('windSpeed')} m/s
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Wind Speed</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Wind Speed</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Gauge className="h-6 w-6 text-purple-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('airQuality')}
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Air Quality</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Air Quality</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Signal className="h-6 w-6 text-yellow-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('signalStrength')} dBm
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Signal Strength</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Signal Strength</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
               </div>
             </div>
             
             {/* Network Performance Section */}
             <div className="space-y-6">
-              <h4 className="text-xl font-semibold text-slate-50 uppercase tracking-wide">Network Performance</h4>
+              <h4 className="text-xl font-semibold text-white uppercase tracking-wide">Network Performance</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Clock className="h-6 w-6 text-orange-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('latency')} ms
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Latency</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Latency</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Zap className="h-6 w-6 text-yellow-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('bandwidth')} Mbps
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Bandwidth</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Bandwidth</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Activity className="h-6 w-6 text-red-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {Math.round(getCurrentTelemetryValue('packetLoss') * 100) / 100}%
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Packet Loss</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Packet Loss</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
 
-                <div className="bg-slate-600/40 backdrop-blur-2xl border border-slate-500/40 rounded-2xl p-6">
+                <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <Wifi className="h-6 w-6 text-indigo-400" />
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="text-3xl font-bold text-slate-50 mb-1">
+                  <div className="text-3xl font-bold text-white mb-1">
                     {getCurrentTelemetryValue('jitter')} ms
                   </div>
-                  <div className="text-sm text-slate-300 mb-2">Jitter</div>
-                  <div className="text-sm text-slate-400">Success</div>
+                  <div className="text-sm text-white/70 mb-2">Jitter</div>
+                  <div className="text-sm text-white/50">Success</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+              </AccordionContent>
+            </div>
+          </AccordionItem>
+        </Accordion>
 
-
-        {/* Detailed Information Tabs */}
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6">
-          <h2 className="text-2xl font-bold text-white mb-6">Detailed Information</h2>
-
-          <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-1">
-              <TabsTrigger value="overview" className="rounded-xl">
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="hardware" className="rounded-xl">
-                Hardware
-              </TabsTrigger>
-              <TabsTrigger value="maintenance" className="rounded-xl">
-                Maintenance
-              </TabsTrigger>
-              <TabsTrigger value="alerts" className="rounded-xl">
-                Alerts
-              </TabsTrigger>
-              <TabsTrigger value="thresholds" className="rounded-xl">
-                Thresholds
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6 mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Location & Basic Info */}
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Location & Configuration</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-white/60">Tower ID:</span>
-                      <p className="text-white">{tower.id}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-white/60">Region:</span>
-                      <p className="text-white">{tower.region || "N/A"}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-white/60">Latitude:</span>
-                      <p className="text-white">{tower.latitude || "N/A"}°</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-white/60">Longitude:</span>
-                      <p className="text-white">{tower.longitude || "N/A"}°</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-white/60">Use Case:</span>
-                      <p className="text-white">{tower.useCase}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-white/60">Last Maintenance:</span>
-                      <p className="text-white">{new Date(tower.lastMaintenance).toLocaleDateString()}</p>
-                    </div>
-                  </div>
+        {/* SiteBoss Data Section (collapsible) */}
+        <Accordion type="multiple" className="space-y-4">
+          <AccordionItem value="siteboss" className="border-none">
+            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl">
+              <AccordionTrigger className="px-6">
+            <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <Activity className="w-6 h-6 text-blue-400" />
+            </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">SiteBoss Real-Time Data</h2>
+                    <p className="text-white/60 tracking-tight">Live sensor data from SiteBoss device</p>
+          </div>
                 </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                <div className="px-6 pb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm text-white/70">Enable SiteBoss for this tower</div>
+                      <Badge variant="outline" className={cn("rounded-full px-2 py-0.5 text-xs", !!tower.sitebossEnabled ? "border-green-500/40 text-green-400" : "border-white/20 text-white/60")}>{!!tower.sitebossEnabled ? "Enabled" : "Disabled"}</Badge>
+                    </div>
+                    <Switch
+                      className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-white/10 border border-white/10"
+                      checked={!!tower.sitebossEnabled}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          // Fetch latest tower to ensure we meet backend validators
+                          const latest = await ApiClient.getTowerById(towerId)
+                          const payload: any = {
+                            name: latest.name || tower.name || 'Tower',
+                            status: String(latest.status || tower.status || 'ONLINE').toUpperCase(),
+                            latitude: Number(latest.latitude ?? tower.latitude ?? 0),
+                            longitude: Number(latest.longitude ?? tower.longitude ?? 0),
+                            city: latest.city || tower.city || 'City',
+                            battery: Number(latest.battery ?? tower.battery ?? 0),
+                            temperature: Number(latest.temperature ?? tower.temperature ?? 0),
+                            uptime: Number(latest.uptime ?? tower.uptime ?? 0),
+                            networkLoad: Number(latest.networkLoad ?? tower.networkLoad ?? 0),
+                            useCase: latest.useCase || tower.useCase || 'GENERAL',
+                            region: latest.region || tower.region || 'UNKNOWN',
+                            lastMaintenance: latest.lastMaintenance ?? tower.lastMaintenance ?? null,
+                            model3dPath: latest.model3dPath ?? tower.model3dPath ?? null,
+                            apiEndpointUrl: latest.apiEndpointUrl ?? tower.apiEndpointUrl ?? null,
+                            apiKey: latest.apiKey ?? tower.apiKey ?? null,
+                            refreshIntervalMs: Number(latest.refreshIntervalMs ?? tower.refreshIntervalMs ?? 0) || null,
+                            // SiteBoss
+                            sitebossEnabled: checked,
+                            sitebossHost: latest.sitebossHost ?? tower.sitebossHost ?? null,
+                            sitebossUsername: latest.sitebossUsername ?? tower.sitebossUsername ?? null,
+                            sitebossPassword: latest.sitebossPassword ?? tower.sitebossPassword ?? null,
+                          }
 
-                {/* Performance Summary */}
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Performance Summary</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/80">Battery Health</span>
-                        <span className="text-white">{Math.round(getCurrentTelemetryValue('battery') * 10) / 10}%</span>
-                      </div>
-                      <Progress value={getCurrentTelemetryValue('battery')} className="h-2" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/80">Network Performance</span>
-                        <span className="text-white">{Math.round((100 - getCurrentTelemetryValue('networkLoad')) * 10) / 10}%</span>
-                      </div>
-                      <Progress value={100 - getCurrentTelemetryValue('networkLoad')} className="h-2" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/80">System Uptime</span>
-                        <span className="text-white">{Math.round(getCurrentTelemetryValue('uptime') * 10) / 10}%</span>
-                      </div>
-                      <Progress value={getCurrentTelemetryValue('uptime')} className="h-2" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/80">Temperature Status</span>
-                        <span className="text-white">{getCurrentTelemetryValue('temperature') < 50 ? "Normal" : "High"}</span>
-                      </div>
-                      <Progress value={Math.min((getCurrentTelemetryValue('temperature') / 60) * 100, 100)} className="h-2" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/80">Signal Strength</span>
-                        <span className="text-white">{getCurrentTelemetryValue('signalStrength')} dBm</span>
-                      </div>
-                      <Progress value={Math.max(0, Math.min((getCurrentTelemetryValue('signalStrength') + 100) / 50 * 100, 100))} className="h-2" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/80">Air Quality</span>
-                        <span className="text-white">{getCurrentTelemetryValue('airQuality')}</span>
-                      </div>
-                      <Progress value={Math.min(getCurrentTelemetryValue('airQuality'), 100)} className="h-2" />
-                    </div>
+                          const updated = await ApiClient.updateTower(towerId, payload)
+                          setTower(updated)
+                        } catch (e) {
+                          console.error('Failed to toggle SiteBoss:', e)
+                        }
+                      }}
+                    />
                   </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="telemetry" className="space-y-6 mt-6">
-              {/* Live Telemetry Data Display */}
-              {getLatestTelemetryData() && (
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Live Telemetry Data</h3>
-                  <div className="overflow-x-auto">
-                    <pre className="bg-white/10 border border-white/20 rounded-lg p-4 text-white text-sm max-h-64 overflow-y-auto">
-                      {JSON.stringify(getLatestTelemetryData(), null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Temperature Trends</h3>
-                  <ChartContainer
+                  <SiteBossDataDisplay
                     config={{
-                      temperature: {
-                        label: "Temperature (°C)",
-                        color: "hsl(var(--chart-2))",
-                      },
+                      host: tower.sitebossHost || '10.9.1.19',
+                      username: tower.sitebossUsername || 'admin',
+                      password: tower.sitebossPassword || 'password',
+                      enabled: !!tower.sitebossEnabled,
                     }}
-                    className="h-64"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={telemetryData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
+                  />
                 </div>
+              </AccordionContent>
+            </div>
+          </AccordionItem>
+        </Accordion>
 
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Network Load Trends</h3>
-                  <ChartContainer
-                    config={{
-                      networkLoad: {
-                        label: "Network Load (%)",
-                        color: "hsl(var(--chart-1))",
-                      },
-                    }}
-                    className="h-64"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={telemetryData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="bandwidth" stroke="var(--color-networkLoad)" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
+        {/* AI Alerts (collapsible) */}
+        <Accordion type="multiple" className="space-y-4">
+          <AccordionItem value="ai-alerts" className="border-none">
+            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
+              <AccordionTrigger className="px-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <Brain className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">AI Alerts</h2>
+                    <p className="text-white/60 tracking-tight">Predictive insights and anomaly detection</p>
+                  </div>
                 </div>
-              </div>
-            </TabsContent>
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                <div className="px-6 pb-6">
+          {isLoadingPredictions ? (
+            <div className="text-white/60">Loading predictions…</div>
+          ) : predictionsError ? (
+            <div className="text-red-400">{predictionsError}</div>
+          ) : !predictions || predictions.length === 0 ? (
+            <div className="text-white/60">No alerts available.</div>
+          ) : (
+            <div className="space-y-3">
+              {predictions.map((p, idx) => (
+                <div key={`${p.metric}-${p.predictedBy}-${idx}`} className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="text-xs">{p.type}</Badge>
+                      <Badge variant="outline" className="text-xs">{p.riskType}</Badge>
+                      <Badge className={
+                        p.urgency === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                        p.urgency === 'HIGH' ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' :
+                        p.urgency === 'WARNING' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
+                        'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                      }>
+                        {p.urgency}
+                      </Badge>
+                    </div>
+                    <div className="text-white font-medium">{p.title}</div>
+                    <div className="text-white/70 text-sm">{p.recommendation}</div>
+                    <div className="text-xs text-white/50">
+                      Metric: {p.metric} • Trend: {p.trendPerHour.toFixed(2)} / hr • ETA: {new Date(p.predictedBy).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-white font-semibold">{p.confidence}%</div>
+                    <div className="text-white/50 text-xs">confidence</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+              </AccordionContent>
+            </div>
+          </AccordionItem>
+        </Accordion>
+
+        {/* Detailed Information (collapsible) */}
+        <Accordion type="multiple" className="space-y-4">
+          <AccordionItem value="detailed-info" className="border-none">
+            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl">
+              <AccordionTrigger className="px-6">
+                    <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-slate-500/20 rounded-xl">
+                    <Settings className="w-6 h-6 text-slate-300" />
+                      </div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">Detailed Information</h2>
+                      </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                <div className="px-6 pb-6">
+                  <Tabs defaultValue="hardware">
+                    <TabsList className="grid w-full grid-cols-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-1">
+                      <TabsTrigger value="hardware" className="rounded-xl">Hardware</TabsTrigger>
+                      <TabsTrigger value="maintenance" className="rounded-xl">Maintenance</TabsTrigger>
+                    </TabsList>
 
             <TabsContent value="hardware" className="mt-6">
               <HardwareManagement
@@ -830,30 +898,7 @@ function TowerDetailsContent() {
               />
             </TabsContent>
 
-            <TabsContent value="thresholds" className="mt-6">
-              <AlertThresholds
-                towerId={tower.id}
-                thresholds={alertThresholds}
-                onThresholdsChange={setAlertThresholds}
-              />
-            </TabsContent>
-
-            <TabsContent value="alerts" className="space-y-4 mt-6">
-              {towerAlerts.length === 0 ? (
-                <div className="text-center py-12">
-                  <AlertTriangle className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">No alerts for this tower</h3>
-                  <p className="text-white/60">This tower is operating normally with no active alerts.</p>
-                </div>
-              ) : (
-                towerAlerts.map((alert) => <AlertItem key={alert.id} alert={alert} />)
-              )}
-            </TabsContent>
-
             <TabsContent value="maintenance" className="space-y-6 mt-6">
-              {/* Maintenance Analytics */}
-              <MaintenanceAnalytics towerId={parseInt(towerId)} />
-              
               <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center space-x-3">
@@ -968,6 +1013,11 @@ function TowerDetailsContent() {
             </TabsContent>
           </Tabs>
         </div>
+              </AccordionContent>
+            </div>
+          </AccordionItem>
+        </Accordion>
+
       </div>
 
       {/* Maintenance Details Modal */}
@@ -988,10 +1038,6 @@ function TowerDetailsContent() {
               onDelete={() => {
                 // TODO: Implement delete functionality
                 console.log('Delete maintenance:', selectedMaintenance.id)
-              }}
-              onViewTower={() => {
-                // Already viewing the tower, just close the modal
-                closeMaintenanceDetails()
               }}
               onStatusUpdate={handleMaintenanceStatusUpdate}
             />

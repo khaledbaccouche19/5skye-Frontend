@@ -6,9 +6,11 @@ import { ArrowLeft, Save, Globe, MapPin, Settings, Activity, Loader2 } from "luc
 import { GlassMainLayout } from "@/components/layout/glass-main-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ApiClient } from "@/lib/api-client"
+import { buildUrl } from "@/lib/config"
 import { motion } from "framer-motion"
 
 export default function EditTowerPage() {
@@ -22,6 +24,7 @@ export default function EditTowerPage() {
   const [tower, setTower] = useState<any>(null)
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
   const [connectionMessage, setConnectionMessage] = useState("")
+  const [fetchedData, setFetchedData] = useState<any>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -39,6 +42,11 @@ export default function EditTowerPage() {
     apiEndpointUrl: "",
     apiKey: "",
     newModelFile: null as File | null,
+    // SiteBoss Configuration
+    sitebossEnabled: false,
+    sitebossHost: "",
+    sitebossUsername: "",
+    sitebossPassword: "",
   })
 
   // Fetch tower data on component mount
@@ -66,6 +74,12 @@ export default function EditTowerPage() {
           lastMaintenance: towerData.lastMaintenance ? towerData.lastMaintenance.split('T')[0] : "",
           apiEndpointUrl: towerData.apiEndpointUrl || "",
           apiKey: towerData.apiKey || "",
+          newModelFile: null,
+          // SiteBoss Configuration
+          sitebossEnabled: towerData.sitebossEnabled || false,
+          sitebossHost: towerData.sitebossHost || "",
+          sitebossUsername: towerData.sitebossUsername || "",
+          sitebossPassword: towerData.sitebossPassword || "",
         })
       } catch (err) {
         console.error('Failed to fetch tower:', err)
@@ -80,7 +94,7 @@ export default function EditTowerPage() {
     }
   }, [towerId])
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -102,14 +116,66 @@ export default function EditTowerPage() {
       
       if (result.success) {
         setConnectionStatus("success")
-        setConnectionMessage("✅ Connection successful!")
+        setConnectionMessage("Connection successful!")
       } else {
         setConnectionStatus("error")
-        setConnectionMessage("❌ Connection failed")
+        setConnectionMessage("Connection failed")
       }
     } catch (error: any) {
       setConnectionStatus("error")
-      setConnectionMessage(`❌ ${error.message}`)
+      setConnectionMessage(`${error.message}`)
+    }
+  }
+
+  const testSiteBossConnection = async () => {
+    if (!formData.sitebossHost || !formData.sitebossUsername || !formData.sitebossPassword) {
+      setConnectionStatus("error")
+      setConnectionMessage("Please fill in all SiteBoss configuration fields")
+      return
+    }
+
+    setConnectionStatus("testing")
+    setConnectionMessage("Testing SiteBoss connection...")
+
+    try {
+      // Test SiteBoss connection through backend
+      const url = buildUrl.api('/siteboss/pull')
+      console.log('🔧 Testing SiteBoss connection at URL:', url)
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          host: formData.sitebossHost,
+          username: formData.sitebossUsername,
+          password: formData.sitebossPassword,
+        }),
+      })
+
+      console.log('🔧 Response status:', response.status, response.statusText)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ SiteBoss response data:', data)
+        
+        if (data.success) {
+          setConnectionStatus("success")
+          setConnectionMessage(`Connection successful! Retrieved data from ${data.siteName || 'SiteBoss device'}`)
+          setFetchedData(data) // Store the pulled data for preview
+        } else {
+          setConnectionStatus("error")
+          setConnectionMessage(`SiteBoss connection failed: ${data.error}`)
+        }
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Response error:', response.status, errorText)
+        setConnectionStatus("error")
+        setConnectionMessage(`HTTP ${response.status}: ${response.statusText}`)
+      }
+    } catch (error: any) {
+      setConnectionStatus("error")
+      setConnectionMessage(`SiteBoss connection error: ${error.message}`)
     }
   }
 
@@ -190,9 +256,20 @@ export default function EditTowerPage() {
         model3dPath: model3dPath,
         apiEndpointUrl: formData.apiEndpointUrl || null,
         apiKey: formData.apiKey || null,
+        // SiteBoss Configuration
+        sitebossEnabled: formData.sitebossEnabled,
+        sitebossHost: formData.sitebossEnabled ? formData.sitebossHost : null,
+        sitebossUsername: formData.sitebossEnabled ? formData.sitebossUsername : null,
+        sitebossPassword: formData.sitebossEnabled ? formData.sitebossPassword : null,
       }
 
-      console.log('Updating tower with data:', towerData)
+      console.log('🔄 Updating tower with data:', towerData)
+      console.log('🔧 SiteBoss config being saved:', {
+        enabled: towerData.sitebossEnabled,
+        host: towerData.sitebossHost,
+        username: towerData.sitebossUsername,
+        password: towerData.sitebossPassword ? '***' : 'null'
+      })
       await ApiClient.updateTower(towerId, towerData)
       
       // Redirect back to tower details
@@ -487,6 +564,158 @@ export default function EditTowerPage() {
             </div>
           </div>
 
+          {/* SiteBoss Configuration */}
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <Activity className="h-6 w-6 text-green-400" />
+              <h2 className="text-2xl font-bold text-white">SiteBoss Integration (Optional)</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-white/60 text-sm">
+                Configure SiteBoss device integration for real-time monitoring data. 
+                This will enable live sensor data from your SiteBoss tower monitoring device.
+              </p>
+              
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                <div className="space-y-1">
+                  <Label htmlFor="sitebossEnabled" className="text-white/80 font-medium">Enable SiteBoss Integration</Label>
+                  <p className="text-white/60 text-sm">Connect to real SiteBoss monitoring devices</p>
+                </div>
+                <Switch
+                  id="sitebossEnabled"
+                  checked={formData.sitebossEnabled}
+                  onCheckedChange={(checked) => handleInputChange("sitebossEnabled", checked)}
+                />
+              </div>
+
+              {formData.sitebossEnabled && (
+                <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sitebossHost" className="text-white/80">Device Host/IP *</Label>
+                      <Input
+                        id="sitebossHost"
+                        value={formData.sitebossHost}
+                        onChange={(e) => handleInputChange("sitebossHost", e.target.value)}
+                        placeholder="10.9.1.19"
+                        className="bg-white/5 border-white/10 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sitebossUsername" className="text-white/80">Username *</Label>
+                      <Input
+                        id="sitebossUsername"
+                        value={formData.sitebossUsername}
+                        onChange={(e) => handleInputChange("sitebossUsername", e.target.value)}
+                        placeholder="admin"
+                        className="bg-white/5 border-white/10 text-white"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="sitebossPassword" className="text-white/80">Password *</Label>
+                    <Input
+                      id="sitebossPassword"
+                      type="password"
+                      value={formData.sitebossPassword}
+                      onChange={(e) => handleInputChange("sitebossPassword", e.target.value)}
+                      placeholder="password"
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={testSiteBossConnection}
+                      disabled={connectionStatus === "testing"}
+                      className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                    >
+                      {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
+                    </Button>
+                    {connectionStatus === "success" && (
+                      <span className="text-green-400 text-sm">✓ Connection successful</span>
+                    )}
+                    {connectionStatus === "error" && (
+                      <span className="text-red-400 text-sm">✗ Connection failed</span>
+                    )}
+                  </div>
+
+                  {/* SiteBoss Data Preview */}
+                  {fetchedData && fetchedData.success && (
+                    <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <h4 className="text-green-400 font-medium">SiteBoss Data Retrieved Successfully</h4>
+                      </div>
+                      
+                      <div className="space-y-3 text-sm">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-white/60">Site Name:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.siteName || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Serial:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.serial || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Version:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.version || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Uptime:</span>
+                            <span className="text-white ml-2">{fetchedData.data?.unit?.uptime || 'N/A'}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-white/60">Total Sensors:</span>
+                            <span className="text-white ml-2">{fetchedData.sensorCount || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Last Update:</span>
+                            <span className="text-white ml-2">{fetchedData.timestamp ? new Date(fetchedData.timestamp).toLocaleString() : 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        {fetchedData.data?.sensors && fetchedData.data.sensors.length > 0 && (
+                          <div className="mt-3">
+                            <span className="text-white/60">Sample Sensors:</span>
+                            <div className="mt-2 space-y-1">
+                              {fetchedData.data.sensors.slice(0, 3).map((sensor: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between text-xs">
+                                  <span className="text-white/80">{sensor.name || `Sensor ${index + 1}`}</span>
+                                  <span className={`px-2 py-1 rounded ${
+                                    sensor.status === 'normal' ? 'bg-green-500/20 text-green-400' :
+                                    sensor.status === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-red-500/20 text-red-400'
+                                  }`}>
+                                    {sensor.status || 'unknown'}
+                                  </span>
+                                </div>
+                              ))}
+                              {fetchedData.data.sensors.length > 3 && (
+                                <div className="text-white/60 text-xs">
+                                  +{fetchedData.data.sensors.length - 3} more sensors...
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* 3D Model */}
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
@@ -608,7 +837,7 @@ export default function EditTowerPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8080/api/telemetry/live")}
+                      onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8081/api/telemetry/live")}
                       className="whitespace-nowrap"
                     >
                       Use Simulator

@@ -24,9 +24,10 @@ interface MaintenanceDetailsProps {
   maintenance: any
   onEdit: () => void
   onDelete: () => void
+  onStatusUpdate: () => void
 }
 
-export function MaintenanceDetails({ maintenance, onEdit, onDelete }: MaintenanceDetailsProps) {
+export function MaintenanceDetails({ maintenance, onEdit, onDelete, onStatusUpdate }: MaintenanceDetailsProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "COMPLETED": return "bg-green-500"

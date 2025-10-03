@@ -2,17 +2,29 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import { ApiClient } from "./api-client"
 
 interface User {
   id: string
+  username: string
   name: string
   email: string
-  role: "admin" | "operator" | "viewer"
+  firstName?: string
+  lastName?: string
+  role: "admin" | "operator" | "viewer" | "USER" | "ADMIN"
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<boolean>
+  login: (username: string, password: string) => Promise<boolean>
+  signup: (userData: {
+    username: string
+    email: string
+    password: string
+    firstName?: string
+    lastName?: string
+    role?: string
+  }) => Promise<boolean>
   logout: () => void
   isLoading: boolean
   isAuthenticated: boolean
@@ -39,10 +51,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error parsing saved user:", error)
         localStorage.removeItem("intelli-twin-user")
       }
+      // Always set loading to false after checking
       setIsLoading(false)
     }
 
-    checkAuth()
+    // Add a small delay to ensure proper initialization
+    const timer = setTimeout(checkAuth, 100)
+    
+    // Fallback timeout to ensure loading never gets stuck
+    const fallbackTimer = setTimeout(() => {
+      console.log("Auth loading fallback triggered")
+      setIsLoading(false)
+    }, 2000)
+    
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(fallbackTimer)
+    }
   }, [])
 
   // Handle routing based on auth state
@@ -66,24 +91,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isLoading, pathname, router])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true)
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Accept any non-empty email and password for demo
-      if (email.trim() && password.trim()) {
-        const mockUser: User = {
+      const response = await ApiClient.login(username, password)
+      
+      if (response.token) {
+        const user: User = {
           id: Date.now().toString(),
-          name: email.split("@")[0] || "User",
-          email: email.trim(),
-          role: "admin",
+          username: response.username,
+          name: response.firstName ? `${response.firstName} ${response.lastName || ''}`.trim() : response.username,
+          email: response.email,
+          firstName: response.firstName,
+          lastName: response.lastName,
+          role: response.role.toLowerCase() as "admin" | "operator" | "viewer" | "USER" | "ADMIN",
         }
 
-        setUser(mockUser)
-        localStorage.setItem("intelli-twin-user", JSON.stringify(mockUser))
+        setUser(user)
+        localStorage.setItem("intelli-twin-user", JSON.stringify(user))
+        localStorage.setItem("intelli-twin-token", response.token)
         setIsLoading(false)
 
         // Navigate to dashboard
@@ -100,9 +127,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const signup = async (userData: {
+    username: string
+    email: string
+    password: string
+    firstName?: string
+    lastName?: string
+    role?: string
+  }): Promise<boolean> => {
+    try {
+      setIsLoading(true)
+
+      await ApiClient.signup(userData)
+      setIsLoading(false)
+      return true
+    } catch (error) {
+      console.error("Signup error:", error)
+      setIsLoading(false)
+      return false
+    }
+  }
+
   const logout = () => {
     setUser(null)
     localStorage.removeItem("intelli-twin-user")
+    localStorage.removeItem("intelli-twin-token")
     router.push("/landing")
   }
 
@@ -111,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         login,
+        signup,
         logout,
         isLoading,
         isAuthenticated: !!user,

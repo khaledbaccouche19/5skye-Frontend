@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Globe,
@@ -27,13 +28,14 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
 
 export default function LandingPage() {
+  const router = useRouter()
   const { login, isLoading } = useAuth()
   const [isLoginMode, setIsLoginMode] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
 
   const [loginForm, setLoginForm] = useState({
-    email: "admin@intellitwin.com",
+    username: "admin",
     password: "demo123",
   })
 
@@ -48,13 +50,13 @@ export default function LandingPage() {
     e.preventDefault()
     setError("")
 
-    if (!loginForm.email.trim() || !loginForm.password.trim()) {
-      setError("Please enter both email and password")
+    if (!loginForm.username.trim() || !loginForm.password.trim()) {
+      setError("Please enter both username and password")
       return
     }
 
     try {
-      const success = await login(loginForm.email, loginForm.password)
+      const success = await login(loginForm.username, loginForm.password)
       if (!success) {
         setError("Login failed. Please try again.")
       }
@@ -159,13 +161,10 @@ export default function LandingPage() {
             </Badge>
             <Button
               variant="outline"
-              onClick={() => {
-                setIsLoginMode(!isLoginMode)
-                setError("")
-              }}
+              onClick={() => router.push("/auth/signup")}
               className="bg-slate-700/40 backdrop-blur-xl border-slate-500/40 text-blue-50 hover:bg-slate-600/50 hover:border-slate-400/50 rounded-2xl"
             >
-              {isLoginMode ? "Sign Up" : "Login"}
+              Sign Up
             </Button>
           </div>
         </motion.header>
@@ -301,18 +300,18 @@ export default function LandingPage() {
                       >
                         <div className="space-y-4">
                           <div>
-                            <Label htmlFor="email" className="text-blue-50 mb-2 block">
-                              Email Address
+                            <Label htmlFor="username" className="text-blue-50 mb-2 block">
+                              Username
                             </Label>
                             <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
+                              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
                               <Input
-                                id="email"
-                                type="email"
-                                value={loginForm.email}
-                                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                id="username"
+                                type="text"
+                                value={loginForm.username}
+                                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                                 className="pl-10 bg-slate-600/50 backdrop-blur-xl border-slate-500/40 text-blue-50 placeholder:text-slate-400 rounded-2xl h-12 focus:bg-slate-500/50 focus:border-blue-500/50"
-                                placeholder="admin@intellitwin.com"
+                                placeholder="admin"
                                 required
                                 disabled={isLoading}
                               />

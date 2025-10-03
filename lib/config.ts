@@ -8,13 +8,7 @@ export const config = {
     uploadPath: '/upload',
   },
   
-  // Simulator configuration
-  simulator: {
-    baseUrl: process.env.NEXT_PUBLIC_SIMULATOR_URL || 'http://localhost:8080',
-    apiPath: '/api',
-    telemetryEndpoint: '/telemetry/live',
-    towersEndpoint: '/towers/summaries',
-  },
+  // REMOVED: Simulator configuration - all data now goes through backend
   
   // Frontend configuration
   frontend: {
@@ -34,12 +28,20 @@ export const config = {
     accessToken: process.env.NEXT_PUBLIC_CESIUM_ACCESS_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4OGM5ODQwZi04Mjg3LTRhOWUtODE4Ni1lNjY4MWYyZWVhMTciLCJpZCI6MzE4NTAzLCJpYXQiOjE3NTM4NjYzNzZ9.MaHbYfTkIsEXD7p27X1CQw4yRA-gfLzQZ0j-XwYkyCo',
     baseUrl: '/cesium',
   },
+  
+  // SiteBoss configuration
+  siteboss: {
+    host: process.env.NEXT_PUBLIC_SITEBOSS_HOST || '10.9.1.19',
+    username: process.env.NEXT_PUBLIC_SITEBOSS_USERNAME || 'admin',
+    password: process.env.NEXT_PUBLIC_SITEBOSS_PASSWORD || 'password',
+    enabled: process.env.NEXT_PUBLIC_SITEBOSS_ENABLED === 'true' || false,
+  },
 } as const
 
 // Helper functions for building URLs
 export const buildUrl = {
   api: (endpoint: string) => `${config.backend.baseUrl}${config.backend.apiPath}${endpoint}`,
-  simulator: (endpoint: string) => `${config.simulator.baseUrl}${config.simulator.apiPath}${endpoint}`,
+  // REMOVED: Simulator URL builder - all data now goes through backend
   model: (modelPath: string) => {
     if (modelPath.startsWith('http://') || modelPath.startsWith('https://')) {
       return modelPath

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Globe, Radio, AlertTriangle, Brain } from "lucide-react"
+import { Globe, Radio, AlertTriangle } from "lucide-react"
 import { GlassMainLayout } from "@/components/layout/glass-main-layout"
 import { GlassMetricCard } from "@/components/ui/glass-metric-card"
 import { CesiumGlobeWrapper } from "@/components/ui/cesium-globe-wrapper"
@@ -21,8 +21,6 @@ function DashboardContent() {
   const router = useRouter()
   const { getTowerById } = useTowers()
   const [towers, setTowers] = useState<any[]>([])
-  const [recentAlerts, setRecentAlerts] = useState<any[]>([])
-  const [aiInsights, setAiInsights] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -60,7 +58,6 @@ function DashboardContent() {
   const onlineTowers = towers.filter(tower => tower.status === "online").length
   const warningTowers = towers.filter(tower => tower.status === "warning").length
   const criticalTowers = towers.filter(tower => tower.status === "critical").length
-  const criticalAlerts = recentAlerts.filter(alert => alert.severity === "critical").length
 
   // Handle card click to set filter
   const handleCardClick = (filterType: string) => {
@@ -111,34 +108,6 @@ function DashboardContent() {
         console.log('Towers ready for globe:', transformedTowers)
         console.log('Sample tower location:', transformedTowers[0]?.location)
         setTowers(transformedTowers)
-        
-        // Fetch recent alerts
-        const alertsData = await ApiClient.getRecentAlerts()
-        setRecentAlerts(alertsData)
-        
-        // For now, keep AI insights as dummy data since there's no API endpoint
-        setAiInsights([
-          {
-            id: "AI-001",
-            towerId: "TWR-003",
-            towerName: "Tower Gamma",
-            prediction: "Battery will fail in 4 days",
-            recommendation: "Schedule immediate battery replacement",
-            confidence: 94,
-            riskType: "Hardware Failure",
-            urgency: "critical",
-          },
-          {
-            id: "AI-002",
-            towerId: "TWR-002",
-            towerName: "Tower Beta",
-            prediction: "CPU overload risk: 87%",
-            recommendation: "Optimize workload distribution",
-            confidence: 87,
-            riskType: "Performance",
-            urgency: "warning",
-          },
-        ])
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err)
         setError('Failed to load dashboard data')
@@ -351,104 +320,6 @@ function DashboardContent() {
         </motion.div>
 
 
-        {/* Recent Alerts */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
-          className="w-full mb-8"
-        >
-          <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
-            <h2 className="text-xl font-bold text-slate-50 mb-6">Recent Alerts</h2>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {recentAlerts.slice(0, 5).map((alert, index) => (
-                <motion.div
-                  key={alert.id}
-                  className="p-4 bg-slate-600/50 backdrop-blur-xl border border-slate-500/40 rounded-2xl"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.9 + index * 0.1, duration: 0.4 }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold text-red-50">{alert.title}</h4>
-                    <Badge
-                      variant={
-                        alert.severity === "critical"
-                          ? "destructive"
-                          : alert.severity === "warning"
-                            ? "secondary"
-                            : "default"
-                      }
-                      className="backdrop-blur-xl"
-                    >
-                      {alert.severity.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-slate-300 mb-2">{alert.description}</p>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Tower: {alert.towerName || "Unknown"}</span>
-                    <span>{new Date(alert.timestamp).toLocaleString()}</span>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {recentAlerts.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-slate-400">No recent alerts</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* AI Insights */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.0, duration: 0.6 }}
-          className="w-full mb-8"
-        >
-          <div className="bg-slate-700/40 backdrop-blur-2xl border border-slate-500/40 rounded-3xl p-6 shadow-glass-lg">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-400/30">
-                <Brain className="h-6 w-6 text-purple-200" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-50">AI Insights</h2>
-            </div>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {aiInsights.map((insight, index) => (
-                <motion.div
-                  key={insight.id}
-                  className="p-4 bg-slate-600/50 backdrop-blur-xl border border-slate-500/40 rounded-2xl"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 1.1 + index * 0.1, duration: 0.4 }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold text-purple-50">{insight.prediction}</h4>
-                    <Badge
-                      variant={
-                        insight.urgency === "critical"
-                          ? "destructive"
-                          : insight.urgency === "warning"
-                            ? "secondary"
-                            : "default"
-                      }
-                      className="backdrop-blur-xl"
-                    >
-                      {insight.urgency.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-slate-300 mb-2">{insight.recommendation}</p>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Tower: {insight.towerName}</span>
-                    <span>Confidence: {insight.confidence}%</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
       </div>
     </GlassMainLayout>
   )

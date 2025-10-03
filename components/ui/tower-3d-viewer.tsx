@@ -131,8 +131,8 @@ function TowerModel({
   // Load OBJ, STL, PLY files using custom hook
   const { model: customModel, loading: modelLoading, error: modelError } = useOther3DModel(isGLBOrGLTF ? null : customModelUrl || null, customModelFileType || undefined)
   
-  // Load GLB/GLTF files using useGLTF - must be called unconditionally
-  const gltfModel = useGLTF(customModelUrl || '', true)
+  // Load GLB/GLTF files using useGLTF only when URL is valid
+  const gltfModel = isGLBOrGLTF && customModelUrl ? useGLTF(customModelUrl, true) : ({} as any)
   
   // Add error handling for useGLTF
   useEffect(() => {

@@ -9,6 +9,7 @@ import { GlassMetricCard } from "@/components/ui/glass-metric-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ConnectionStatusBadge, getTowerDataSource, isTowerConnected } from "@/components/ui/connection-status-badge"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ApiClient } from "@/lib/api-client"
@@ -32,8 +33,39 @@ function TowersContent() {
       setError(null)
       
       const towersData = await ApiClient.getTowers()
-      setTowers(towersData)
-      setFilteredTowers(towersData)
+      
+      // Fetch live telemetry data for each tower
+      const towersWithLiveData = await Promise.all(
+        towersData.map(async (tower) => {
+          try {
+            const liveData = await ApiClient.fetchTelemetryData(tower.id)
+            if (liveData && Array.isArray(liveData) && liveData.length > 0) {
+              const telemetry = liveData[0]
+              // Update tower with live telemetry data
+              return {
+                ...tower,
+                battery: telemetry.battery || tower.battery,
+                temperature: telemetry.temperature || tower.temperature,
+                uptime: telemetry.uptime || tower.uptime,
+                networkLoad: telemetry.networkLoad || tower.networkLoad,
+                // Add additional telemetry fields that might be useful
+                humidity: telemetry.humidity,
+                windSpeed: telemetry.windSpeed,
+                signalStrength: telemetry.signalStrength,
+                lastTelemetryUpdate: telemetry.timestamp
+              }
+            }
+            return tower
+          } catch (telemetryError) {
+            console.warn(`Warning: Failed to fetch telemetry for tower ${tower.id}:`, telemetryError)
+            return tower // Return original tower data if telemetry fetch fails
+          }
+        })
+      )
+      
+      console.log('Towers with live telemetry data:', towersWithLiveData)
+      setTowers(towersWithLiveData)
+      setFilteredTowers(towersWithLiveData)
     } catch (err) {
       console.error('Failed to fetch towers:', err)
       setError('Failed to load towers')
@@ -47,6 +79,13 @@ function TowersContent() {
 
   useEffect(() => {
     fetchTowers()
+    
+    // Set up periodic refresh of telemetry data every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchTowers()
+    }, 30000) // 30 seconds
+    
+    return () => clearInterval(intervalId)
   }, [])
 
   // Filter towers based on search, filters, and card selection
@@ -322,31 +361,87 @@ function TowersContent() {
             </div>
 
             <div className="flex gap-3">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Status</option>
-                <option value="online">Online</option>
-                <option value="warning">Warning</option>
-                <option value="critical">Critical</option>
-                <option value="offline">Offline</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] bg-white/5 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/10 transition-all duration-200 focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl">
+                  <SelectItem value="all" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    All Status
+                  </SelectItem>
+                  <SelectItem value="online" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Online</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="warning" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <span>Warning</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="critical" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span>Critical</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="offline" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      <span>Offline</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-              <select
-                value={regionFilter}
-                onChange={(e) => setRegionFilter(e.target.value)}
-                className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Regions</option>
-                <option value="Middle East">Middle East</option>
-                <option value="Europe">Europe</option>
-                <option value="Asia Pacific">Asia Pacific</option>
-                <option value="North America">North America</option>
-                <option value="South America">South America</option>
-                <option value="Africa">Africa</option>
-              </select>
+              <Select value={regionFilter} onValueChange={setRegionFilter}>
+                <SelectTrigger className="w-[150px] bg-white/5 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/10 transition-all duration-200 focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50">
+                  <SelectValue placeholder="All Regions" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl">
+                  <SelectItem value="all" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    All Regions
+                  </SelectItem>
+                  <SelectItem value="Middle East" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-3 h-3 text-orange-400" />
+                      <span>Middle East</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Europe" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-3 h-3 text-blue-400" />
+                      <span>Europe</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Asia Pacific" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-3 h-3 text-green-400" />
+                      <span>Asia Pacific</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="North America" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-3 h-3 text-purple-400" />
+                      <span>North America</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="South America" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-3 h-3 text-cyan-400" />
+                      <span>South America</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Africa" className="text-white hover:bg-white/10 focus:bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-3 h-3 text-yellow-400" />
+                      <span>Africa</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </motion.div>
@@ -438,28 +533,39 @@ function TowersContent() {
                 </div>
               </div>
 
+              {/* Live Data Indicator */}
+              {tower.lastTelemetryUpdate && (
+                <div className="flex items-center justify-between text-xs text-white/60 mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span>Live Data</span>
+                  </div>
+                  <span>{new Date(tower.lastTelemetryUpdate).toLocaleTimeString()}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="text-center p-3 bg-white/5 rounded-2xl">
                   <div className="text-2xl font-bold text-blue-200">
-                    {isTowerConnected(tower) ? (tower.battery || 0) : 0}%
+                    {isTowerConnected(tower) ? Math.round((tower.battery || 0) * 10) / 10 : 0}%
                   </div>
                   <div className="text-white/60">Battery</div>
                 </div>
                 <div className="text-center p-3 bg-white/5 rounded-2xl">
                   <div className="text-2xl font-bold text-green-200">
-                    {isTowerConnected(tower) ? (tower.temperature || 0) : 0}°C
+                    {isTowerConnected(tower) ? Math.round((tower.temperature || 0) * 10) / 10 : 0}°C
                   </div>
                   <div className="text-white/60">Temperature</div>
                 </div>
                 <div className="text-center p-3 bg-white/5 rounded-2xl">
                   <div className="text-2xl font-bold text-purple-200">
-                    {isTowerConnected(tower) ? (tower.uptime || 0) : 0}%
+                    {isTowerConnected(tower) ? Math.round((tower.uptime || 0) * 10) / 10 : 0}%
                   </div>
                   <div className="text-white/60">Uptime</div>
                 </div>
                 <div className="text-center p-3 bg-white/5 rounded-2xl">
                   <div className="text-2xl font-bold text-orange-200">
-                    {isTowerConnected(tower) ? (tower.networkLoad || 0) : 0}%
+                    {isTowerConnected(tower) ? Math.round((tower.networkLoad || 0) * 10) / 10 : 0}%
                   </div>
                   <div className="text-white/60">Network</div>
                 </div>

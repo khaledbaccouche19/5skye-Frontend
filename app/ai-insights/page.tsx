@@ -50,9 +50,9 @@ export default function AIInsightsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-50">AI Insights</h1>
+            <h1 className="text-3xl font-bold text-slate-50">AI Alerts</h1>
             <p className="text-slate-300">
-              AI-powered predictions and recommendations for your infrastructure
+              AI-powered anomaly alerts and recommendations for your infrastructure
             </p>
           </div>
           <Button className="bg-slate-700/40 border-slate-500/40 hover:bg-slate-600/50">
@@ -154,9 +154,9 @@ export default function AIInsightsPage() {
           {filteredInsights.length === 0 ? (
             <div className="col-span-2 text-center py-12">
               <Brain className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-100 mb-2">No insights found</h3>
+              <h3 className="text-lg font-medium text-slate-100 mb-2">No alerts found</h3>
               <p className="text-slate-300">
-                Try adjusting your filters or check back later for new AI predictions
+                Try adjusting your filters or check back later for new AI alerts
               </p>
             </div>
           ) : (
@@ -210,7 +210,7 @@ export default function AIInsightsPage() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-slate-50">
               <Brain className="h-5 w-5 text-slate-200" />
-              <span>AI Model Performance</span>
+              <span>AI Alerting Performance</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="text-slate-200">

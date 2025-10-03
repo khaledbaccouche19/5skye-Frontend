@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { Globe, Radio, BarChart3, AlertTriangle, Brain, Wrench, FileText, Menu, X, TrendingUp, Wifi, Activity, Cloud } from "lucide-react"
+import { Globe, Radio, BarChart3, Brain, Wrench, FileText, Menu, X, Wifi, Activity, Cloud } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useThemeSafe } from "@/hooks/use-theme-safe"
 
@@ -12,10 +12,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: Globe },
   { name: "Towers", href: "/towers", icon: Radio },
   { name: "Maintenance", href: "/maintenance", icon: Wrench },
-  { name: "Performance", href: "/performance", icon: TrendingUp },
-  { name: "Telemetry", href: "/telemetry", icon: BarChart3 },
   { name: "AI Analytics", href: "/ai-analytics", icon: Brain },
-  { name: "Alerts", href: "/alerts", icon: AlertTriangle },
 ]
 
 export function GlassSidebar() {
