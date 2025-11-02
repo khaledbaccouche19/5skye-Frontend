@@ -8,6 +8,7 @@ import {
   Thermometer,
   Wifi,
   Activity,
+  Search,
   Settings,
   History,
   AlertTriangle,
@@ -24,6 +25,10 @@ import {
   DollarSign,
   Brain,
   RefreshCw,
+  MessageCircle,
+  Send,
+  Bot,
+  User,
 } from "lucide-react"
 import { GlassMainLayout } from "@/components/layout/glass-main-layout"
 import { GlassMetricCard } from "@/components/ui/glass-metric-card"
@@ -31,9 +36,11 @@ import { AlertItem } from "@/components/ui/alert-item"
 import { HardwareManagement } from "@/components/ui/hardware-management"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -48,9 +55,14 @@ import { SiteBossDataDisplay } from "@/components/siteboss/siteboss-data-display
 import { useTowers } from "@/lib/towers-context"
 import { ApiClient, type PredictiveInsightDTO } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/lib/translation-context"
 
 function TowerDetailsContent() {
+  const { t } = useTranslation()
   const params = useParams()
+  const towerIdParam = (params?.id as string) || ""
+  // removed history UI/state
+
   const router = useRouter()
   const { getTowerById } = useTowers()
   const towerId = params.id as string
@@ -72,6 +84,12 @@ function TowerDetailsContent() {
   const [error, setError] = useState<string | null>(null)
   const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null)
   const [isMaintenanceDetailsOpen, setIsMaintenanceDetailsOpen] = useState(false)
+  
+  // AI Chatbot state
+  const [chatMessages, setChatMessages] = useState<Array<{id: string, type: 'user' | 'ai', message: string, timestamp: string}>>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isChatLoading, setIsChatLoading] = useState(false)
+  const [showChat, setShowChat] = useState(false)
 
   // Function to refresh maintenance data
   const refreshMaintenanceData = async () => {
@@ -83,6 +101,31 @@ function TowerDetailsContent() {
     }
   }
 
+  // Maintenance filters
+  const [maintStatus, setMaintStatus] = useState<string>("ALL")
+  const [maintType, setMaintType] = useState<string>("ALL")
+  const [maintPriority, setMaintPriority] = useState<string>("ALL")
+  const [maintFrom, setMaintFrom] = useState<string>("")
+  const [maintTo, setMaintTo] = useState<string>("")
+  const [maintQuery, setMaintQuery] = useState<string>("")
+
+  const filteredMaintenance = maintenanceRecords.filter((r) => {
+    if (
+      maintQuery &&
+      !(
+        r.title?.toLowerCase().includes(maintQuery.toLowerCase()) ||
+        r.description?.toLowerCase().includes(maintQuery.toLowerCase()) ||
+        r.technician?.toLowerCase().includes(maintQuery.toLowerCase())
+      )
+    ) return false
+    if (maintStatus !== "ALL" && r.status !== maintStatus) return false
+    if (maintType !== "ALL" && r.type !== maintType) return false
+    if (maintPriority !== "ALL" && r.priority !== maintPriority) return false
+    if (maintFrom && new Date(r.startDate) < new Date(maintFrom)) return false
+    if (maintTo && new Date(r.startDate) > new Date(maintTo)) return false
+    return true
+  })
+
   // Function to open maintenance details
   const openMaintenanceDetails = (maintenance: any) => {
     setSelectedMaintenance(maintenance)
@@ -93,6 +136,64 @@ function TowerDetailsContent() {
   const closeMaintenanceDetails = () => {
     setSelectedMaintenance(null)
     setIsMaintenanceDetailsOpen(false)
+  }
+
+  // AI Chatbot functions
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || isChatLoading) return
+
+    const userMessage = {
+      id: Date.now().toString(),
+      type: 'user' as const,
+      message: chatInput,
+      timestamp: new Date().toISOString()
+    }
+
+    setChatMessages(prev => [...prev, userMessage])
+    setChatInput('')
+    setIsChatLoading(true)
+
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tower_id: parseInt(towerId),
+          message: chatInput
+        })
+      })
+
+      const data = await response.json()
+      
+      const aiMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai' as const,
+        message: data.ai_response,
+        timestamp: new Date().toISOString()
+      }
+
+      setChatMessages(prev => [...prev, aiMessage])
+    } catch (error) {
+      console.error('Chat error:', error)
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai' as const,
+        message: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date().toISOString()
+      }
+      setChatMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsChatLoading(false)
+    }
+  }
+
+  const handleChatKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendChatMessage()
+    }
   }
 
   // Function to handle maintenance status update
@@ -390,13 +491,13 @@ function TowerDetailsContent() {
 
   return (
     <GlassMainLayout>
-      <div className="space-y-8">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {t.back}
             </Button>
             <div>
               <div className="flex items-center space-x-3">
@@ -429,7 +530,7 @@ function TowerDetailsContent() {
               className="bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-2xl"
             >
               <Download className="h-4 w-4 mr-2" />
-              Export Data
+              {t.exportData}
             </Button>
             <Button 
               size="sm" 
@@ -453,7 +554,7 @@ function TowerDetailsContent() {
               }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {t.refresh}
             </Button>
             <Button 
               size="sm" 
@@ -461,7 +562,7 @@ function TowerDetailsContent() {
               onClick={() => router.push(`/towers/${towerId}/edit`)}
             >
               <Edit className="h-4 w-4 mr-2" />
-              Edit Tower
+              {t.editTower}
             </Button>
           </div>
         </div>
@@ -469,10 +570,10 @@ function TowerDetailsContent() {
         {/* Quick Info Strip removed per request */}
 
         {/* 3D Visualization */}
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 mb-8">
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6">
           <div className="flex items-center space-x-3 mb-6">
             <Settings className="h-6 w-6 text-blue-400" />
-            <h2 className="text-2xl font-bold text-white">3D Tower Visualization</h2>
+            <h2 className="text-2xl font-bold text-white">{t.tower3dVisualization}</h2>
           </div>
           <div className="h-[600px] w-full">
             <Tower3DViewer tower={tower} />
@@ -489,7 +590,7 @@ function TowerDetailsContent() {
                     <div className="p-3 bg-purple-500/20 rounded-xl">
                       <Activity className="w-6 h-6 text-purple-400" />
                     </div>
-                    <span className="text-2xl font-bold text-white tracking-tight">Live Metrics</span>
+                      <h2 className="text-2xl font-bold text-white tracking-tight">Live Metrics</h2>
                   </div>
               {liveTelemetryData && (
                 <div className="flex items-center space-x-2">
@@ -515,7 +616,7 @@ function TowerDetailsContent() {
                   ) : (
                     <Activity className="h-4 w-4 mr-2" />
                   )}
-                  {isRefreshingTelemetry ? "Refreshing..." : "Refresh"}
+                  {isRefreshingTelemetry ? t.refreshing : t.refresh}
                 </Button>
                 <Button
                   variant="outline"
@@ -528,7 +629,7 @@ function TowerDetailsContent() {
                   <div className={`w-2 h-2 rounded-full mr-2 ${
                     autoRefreshEnabled ? 'bg-green-400 animate-pulse' : 'bg-slate-400'
                   }`} />
-                  Auto
+                  {t.auto}
                 </Button>
                       <div className="ml-2">
                         <Select
@@ -536,14 +637,7 @@ function TowerDetailsContent() {
                           onValueChange={(v) => setRefreshMs(parseInt(v))}
                         >
                           <SelectTrigger className="w-32 bg-white/5 border-white/10 text-white rounded-2xl h-8">
-                            <SelectValue placeholder="Refresh">
-                              {refreshMs === 1000 ? 'Every 1s' :
-                               refreshMs === 2000 ? 'Every 2s' :
-                               refreshMs === 5000 ? 'Every 5s' :
-                               refreshMs === 10000 ? 'Every 10s' :
-                               refreshMs === 30000 ? 'Every 30s' :
-                               `Every ${refreshMs/1000}s`}
-                            </SelectValue>
+                            <SelectValue placeholder={t.refresh} />
                           </SelectTrigger>
                           <SelectContent className="bg-slate-900/90 backdrop-blur-xl border-white/10 text-white">
                             <SelectItem value="1000">Every 1s</SelectItem>
@@ -735,7 +829,7 @@ function TowerDetailsContent() {
           </AccordionItem>
         </Accordion>
 
-        {/* SiteBoss Data Section (collapsible) */}
+        {/* Data Sections (collapsible) */}
         <Accordion type="multiple" className="space-y-4">
           <AccordionItem value="siteboss" className="border-none">
             <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl">
@@ -744,10 +838,7 @@ function TowerDetailsContent() {
                   <div className="p-3 bg-blue-500/20 rounded-xl">
                     <Activity className="w-6 h-6 text-blue-400" />
             </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">SiteBoss Real-Time Data</h2>
-                    <p className="text-white/60 tracking-tight">Live sensor data from SiteBoss device</p>
-          </div>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Real-Time Data</h2>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-0">
@@ -803,15 +894,14 @@ function TowerDetailsContent() {
                       password: tower.sitebossPassword || 'password',
                       enabled: !!tower.sitebossEnabled,
                     }}
+                    towerId={towerId}
                   />
                 </div>
               </AccordionContent>
             </div>
           </AccordionItem>
-        </Accordion>
 
-        {/* AI Alerts (collapsible) */}
-        <Accordion type="multiple" className="space-y-4">
+          {/* AI Alerts Section */}
           <AccordionItem value="ai-alerts" className="border-none">
             <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
               <AccordionTrigger className="px-6">
@@ -819,10 +909,7 @@ function TowerDetailsContent() {
                   <div className="p-3 bg-blue-500/20 rounded-xl">
                     <Brain className="w-6 h-6 text-blue-400" />
                   </div>
-                  <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">AI Alerts</h2>
-                    <p className="text-white/60 tracking-tight">Predictive insights and anomaly detection</p>
-                  </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-0">
@@ -832,7 +919,100 @@ function TowerDetailsContent() {
           ) : predictionsError ? (
             <div className="text-red-400">{predictionsError}</div>
           ) : !predictions || predictions.length === 0 ? (
-            <div className="text-white/60">No alerts available.</div>
+            <div className="space-y-4">
+              {/* AI Chatbot Interface */}
+              <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <MessageCircle className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">{t.aiAssistant}</h3>
+                      <p className="text-white/60 text-sm">{t.chatWithAI}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowChat(!showChat)}
+                    className="text-white/60 hover:text-white"
+                  >
+                    {showChat ? 'Hide' : 'Show'} Chat
+                  </Button>
+                </div>
+
+                {showChat && (
+                  <div className="space-y-4">
+                 {/* Chat Messages */}
+                 <div className="h-[40rem] overflow-y-auto space-y-3 p-3 bg-black/20 rounded-lg border border-white/10">
+                      {chatMessages.length === 0 ? (
+                        <div className="text-center text-white/60 py-8">
+                          <Bot className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+                          <p>Ask me anything about this tower!</p>
+                          <p className="text-sm mt-1">Try: "What are the main issues?" or "How is the temperature?"</p>
+                        </div>
+                      ) : (
+                        chatMessages.map((message) => (
+                          <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`flex items-start space-x-2 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                              <div className={`p-2 rounded-lg ${message.type === 'user' ? 'bg-blue-500/20' : 'bg-white/10'}`}>
+                                {message.type === 'user' ? (
+                                  <User className="w-4 h-4 text-blue-400" />
+                                ) : (
+                                  <Bot className="w-4 h-4 text-blue-400" />
+                                )}
+                              </div>
+                              <div className={`p-3 rounded-lg ${message.type === 'user' ? 'bg-blue-500/20 text-white' : 'bg-white/10 text-white/90'}`}>
+                                <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                                <p className="text-xs text-white/50 mt-1">
+                                  {new Date(message.timestamp).toLocaleTimeString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {isChatLoading && (
+                        <div className="flex justify-start">
+                          <div className="flex items-start space-x-2">
+                            <div className="p-2 rounded-lg bg-white/10">
+                              <Bot className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <div className="p-3 rounded-lg bg-white/10">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Chat Input */}
+                    <div className="flex space-x-2">
+                      <Input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyPress={handleChatKeyPress}
+                        placeholder="Ask about this tower..."
+                        disabled={isChatLoading}
+                        className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-blue-400"
+                      />
+                      <Button
+                        onClick={sendChatMessage}
+                        disabled={!chatInput.trim() || isChatLoading}
+                        className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               {predictions.map((p, idx) => (
@@ -879,18 +1059,19 @@ function TowerDetailsContent() {
                   <div className="p-3 bg-slate-500/20 rounded-xl">
                     <Settings className="w-6 h-6 text-slate-300" />
                       </div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">Detailed Information</h2>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Detailed Information</h2>
                       </div>
               </AccordionTrigger>
               <AccordionContent className="px-0">
                 <div className="px-6 pb-6">
                   <Tabs defaultValue="hardware">
                     <TabsList className="grid w-full grid-cols-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-1">
-                      <TabsTrigger value="hardware" className="rounded-xl">Hardware</TabsTrigger>
-                      <TabsTrigger value="maintenance" className="rounded-xl">Maintenance</TabsTrigger>
+                      <TabsTrigger value="hardware" className="rounded-xl">{t.hardware}</TabsTrigger>
+                      <TabsTrigger value="maintenance" className="rounded-xl">{t.maintenance}</TabsTrigger>
                     </TabsList>
 
             <TabsContent value="hardware" className="mt-6">
+            {/* History UI removed as requested */}
               <HardwareManagement
                 towerId={tower.id}
                 components={hardwareComponents}
@@ -903,7 +1084,7 @@ function TowerDetailsContent() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center space-x-3">
                     <History className="h-5 w-5 text-blue-400" />
-                    <h3 className="text-lg font-bold text-white">Maintenance History</h3>
+                    <h3 className="text-lg font-bold text-white">{t.maintenanceHistory}</h3>
                   </div>
                   <div className="flex items-center space-x-2">
                   <Button
@@ -915,28 +1096,75 @@ function TowerDetailsContent() {
                       <Activity className="h-4 w-4 mr-2" />
                       Refresh
                   </Button>
-                    <InlineMaintenanceForm
-                      towerId={parseInt(towerId)}
-                      towerName={tower.name}
-                      onMaintenanceCreated={refreshMaintenanceData}
-                    />
                   </div>
                 </div>
                 
-                {maintenanceRecords.length === 0 ? (
+                {filteredMaintenance.length === 0 ? (
                   <div className="text-center py-8">
                     <Wrench className="h-12 w-12 text-white/30 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-white mb-2">No maintenance records found</h3>
                     <p className="text-white/60 mb-4">This tower has no maintenance history yet.</p>
-                    <InlineMaintenanceForm
-                      towerId={parseInt(towerId)}
-                      towerName={tower.name}
-                      onMaintenanceCreated={refreshMaintenanceData}
-                    />
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {maintenanceRecords.map((record) => {
+                    {/* Filters row styled like Hardware filters */}
+                    <div className="flex gap-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 h-4 w-4" />
+                        <Input
+                          placeholder="Search by title, description, or technician..."
+                          value={maintQuery}
+                          onChange={(e) => setMaintQuery(e.target.value)}
+                          className="pl-10 bg-white/5 border-white/10 text-white rounded-2xl"
+                        />
+                      </div>
+
+                      <Select value={maintStatus} onValueChange={setMaintStatus}>
+                        <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white rounded-2xl">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/90 backdrop-blur-2xl border-white/10 rounded-2xl">
+                          <SelectItem value="ALL">All Statuses</SelectItem>
+                          <SelectItem value="COMPLETED">Completed</SelectItem>
+                          <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                          <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                          <SelectItem value="PLANNED">Planned</SelectItem>
+                          <SelectItem value="OVERDUE">Overdue</SelectItem>
+                          <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={maintType} onValueChange={setMaintType}>
+                        <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white rounded-2xl">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/90 backdrop-blur-2xl border-white/10 rounded-2xl">
+                          <SelectItem value="ALL">All Types</SelectItem>
+                          <SelectItem value="EMERGENCY">Emergency</SelectItem>
+                          <SelectItem value="PREVENTIVE">Preventive</SelectItem>
+                          <SelectItem value="ROUTINE">Routine</SelectItem>
+                          <SelectItem value="INSPECTION">Inspection</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={maintPriority} onValueChange={setMaintPriority}>
+                        <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white rounded-2xl">
+                          <SelectValue placeholder="Priority" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/90 backdrop-blur-2xl border-white/10 rounded-2xl">
+                          <SelectItem value="ALL">All Priorities</SelectItem>
+                          <SelectItem value="CRITICAL">Critical</SelectItem>
+                          <SelectItem value="HIGH">High</SelectItem>
+                          <SelectItem value="MEDIUM">Medium</SelectItem>
+                          <SelectItem value="LOW">Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Input type="date" className="w-48 bg-white/5 border-white/10 text-white rounded-2xl" value={maintFrom} onChange={(e)=> setMaintFrom(e.target.value)} />
+                      <Input type="date" className="w-48 bg-white/5 border-white/10 text-white rounded-2xl" value={maintTo} onChange={(e)=> setMaintTo(e.target.value)} />
+                    </div>
+
+                    {filteredMaintenance.map((record) => {
                       const getStatusColor = (status: string) => {
                         switch (status) {
                           case "COMPLETED": return "bg-green-500"

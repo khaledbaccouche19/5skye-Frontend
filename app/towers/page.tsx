@@ -544,32 +544,6 @@ function TowersContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-blue-200">
-                    {isTowerConnected(tower) ? Math.round((tower.battery || 0) * 10) / 10 : 0}%
-                  </div>
-                  <div className="text-white/60">Battery</div>
-                </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-green-200">
-                    {isTowerConnected(tower) ? Math.round((tower.temperature || 0) * 10) / 10 : 0}°C
-                  </div>
-                  <div className="text-white/60">Temperature</div>
-                </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-purple-200">
-                    {isTowerConnected(tower) ? Math.round((tower.uptime || 0) * 10) / 10 : 0}%
-                  </div>
-                  <div className="text-white/60">Uptime</div>
-                </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl">
-                  <div className="text-2xl font-bold text-orange-200">
-                    {isTowerConnected(tower) ? Math.round((tower.networkLoad || 0) * 10) / 10 : 0}%
-                  </div>
-                  <div className="text-white/60">Network</div>
-                </div>
-              </div>
 
               {/* Action Buttons */}
               <div className="flex justify-end space-x-2 pt-4 border-t border-white/10">

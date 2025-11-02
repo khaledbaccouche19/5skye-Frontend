@@ -207,11 +207,11 @@ export default function LoginPage() {
                         Username
                       </Label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Radio className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                           id="username"
                           type="text"
-                          placeholder="Enter your username"
+                          placeholder="Enter your username (e.g., admin)"
                           value={loginForm.username}
                           onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                           className="pl-10 bg-slate-600/50 backdrop-blur-xl border-slate-500/40 text-blue-50 placeholder:text-slate-400 rounded-2xl focus:border-blue-500/50 focus:ring-blue-500/20"

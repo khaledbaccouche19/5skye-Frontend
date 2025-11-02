@@ -31,6 +31,9 @@
     --chart-5: 340 75% 55%;
     --radius: 1rem;
     
+    /* Sidebar width for layout */
+    --sidebar-width: 64px;
+    
     /* Custom light theme colors */
     --glass-bg: rgba(255, 255, 255, 0.1);
     --glass-border: rgba(255, 255, 255, 0.2);

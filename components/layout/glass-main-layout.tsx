@@ -36,7 +36,7 @@ export function GlassMainLayout({ children }: GlassMainLayoutProps) {
         <div className="flex h-screen overflow-hidden">
           <GlassSidebar />
           
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out" style={{ marginLeft: 'var(--sidebar-width, 64px)' }}>
             <GlassTopbar />
             
             <main className="flex-1 overflow-y-auto p-6 theme-transition">
@@ -80,7 +80,7 @@ export function GlassMainLayout({ children }: GlassMainLayoutProps) {
       <div className="flex h-screen overflow-hidden">
         <GlassSidebar />
         
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out" style={{ marginLeft: 'var(--sidebar-width, 64px)' }}>
           <GlassTopbar />
           
           <main className="flex-1 overflow-y-auto p-6 theme-transition">

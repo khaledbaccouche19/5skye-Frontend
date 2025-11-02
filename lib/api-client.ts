@@ -283,6 +283,17 @@ export class ApiClient {
     return this.request<any[]>(`/hardware/tower/${towerId}`)
   }
 
+  static async searchHardware(params: { towerId?: string; vendor?: string; serial?: string; warrantyAfter?: string; warrantyBefore?: string }) {
+    const query = new URLSearchParams()
+    if (params.towerId) query.set('towerId', params.towerId)
+    if (params.vendor) query.set('vendor', params.vendor)
+    if (params.serial) query.set('serial', params.serial)
+    if (params.warrantyAfter) query.set('warrantyAfter', params.warrantyAfter)
+    if (params.warrantyBefore) query.set('warrantyBefore', params.warrantyBefore)
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return this.request<any[]>(`/hardware/search${suffix}`)
+  }
+
   static async createHardware(hardwareData: any) {
     return this.request<any>(`/hardware`, {
       method: 'POST',
@@ -316,6 +327,11 @@ export class ApiClient {
   // Telemetry endpoints
   static async getTelemetryByTower(towerId: string) {
     return this.request<any[]>(`/telemetry/tower/${towerId}`)
+  }
+
+  static async getTelemetryByTowerInRange(towerId: string, startISO: string, endISO: string) {
+    const params = new URLSearchParams({ startTime: startISO, endTime: endISO })
+    return this.request<any[]>(`/telemetry/tower/${towerId}/range?${params.toString()}`)
   }
 
   // File upload endpoints

@@ -12,8 +12,10 @@ import { Switch } from "@/components/ui/switch"
 import { ApiClient } from "@/lib/api-client"
 import { buildUrl, config } from "@/lib/config"
 import { motion } from "framer-motion"
+import { useTranslation } from "@/lib/translation-context"
 
 export default function NewTowerPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -428,11 +430,11 @@ export default function NewTowerPage() {
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {t.back}
             </Button>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                Add New Tower
+                {t.add} {t.towers.slice(0, -1)}
               </h1>
               <p className="text-white/60 text-lg mt-1">
                 Configure a new telecommunications tower with optional 3D model and API configuration
@@ -459,12 +461,12 @@ export default function NewTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Globe className="h-6 w-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Basic Information</h2>
+              <h2 className="text-2xl font-bold text-white">{t.settings}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-white/80">Tower Name *</Label>
+                <Label htmlFor="name" className="text-white/80">{t.towerName} *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -478,7 +480,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="status" className="text-white/80">Status *</Label>
+                <Label htmlFor="status" className="text-white/80">{t.statusLabel} *</Label>
                 <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white">
                     <SelectValue />
@@ -494,7 +496,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="useCase" className="text-white/80">Use Case *</Label>
+                <Label htmlFor="useCase" className="text-white/80">{t.useCase} *</Label>
                 <Input
                   id="useCase"
                   value={formData.useCase}
@@ -506,7 +508,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="region" className="text-white/80">Region *</Label>
+                <Label htmlFor="region" className="text-white/80">{t.region} *</Label>
                 <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white">
                     <SelectValue placeholder="Select region" />
@@ -528,12 +530,12 @@ export default function NewTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <MapPin className="h-6 w-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">Location</h2>
+              <h2 className="text-2xl font-bold text-white">{t.city}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="city" className="text-white/80">City *</Label>
+                <Label htmlFor="city" className="text-white/80">{t.city} *</Label>
                 <Input
                   id="city"
                   value={formData.city}
@@ -547,7 +549,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="latitude" className="text-white/80">Latitude *</Label>
+                <Label htmlFor="latitude" className="text-white/80">{t.latitude} *</Label>
                 <Input
                   id="latitude"
                   type="number"
@@ -564,7 +566,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="longitude" className="text-white/80">Longitude *</Label>
+                <Label htmlFor="longitude" className="text-white/80">{t.longitude} *</Label>
                 <Input
                   id="longitude"
                   type="number"
@@ -586,12 +588,12 @@ export default function NewTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Activity className="h-6 w-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Initial Metrics</h2>
+              <h2 className="text-2xl font-bold text-white">{t.metrics}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="battery" className="text-white/80">Battery (%)</Label>
+                <Label htmlFor="battery" className="text-white/80">{t.batteryPct}</Label>
                 <Input
                   id="battery"
                   type="number"
@@ -605,7 +607,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="temperature" className="text-white/80">Temperature (°C)</Label>
+                <Label htmlFor="temperature" className="text-white/80">{t.temperatureC}</Label>
                 <Input
                   id="temperature"
                   type="number"
@@ -618,7 +620,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="uptime" className="text-white/80">Uptime (%)</Label>
+                <Label htmlFor="uptime" className="text-white/80">{t.uptimePct}</Label>
                 <Input
                   id="uptime"
                   type="number"
@@ -632,7 +634,7 @@ export default function NewTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="networkLoad" className="text-white/80">Network Load (%)</Label>
+                <Label htmlFor="networkLoad" className="text-white/80">{t.networkLoadPct}</Label>
                 <Input
                   id="networkLoad"
                   type="number"
@@ -651,12 +653,12 @@ export default function NewTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Settings className="h-6 w-6 text-orange-400" />
-              <h2 className="text-2xl font-bold text-white">Maintenance</h2>
+              <h2 className="text-2xl font-bold text-white">{t.maintenance}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="lastMaintenance" className="text-white/80">Last Maintenance Date</Label>
+                <Label htmlFor="lastMaintenance" className="text-white/80">{t.lastMaintenanceDate}</Label>
                 <Input
                   id="lastMaintenance"
                   type="date"
@@ -672,7 +674,7 @@ export default function NewTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Activity className="h-6 w-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">SiteBoss Integration (Optional)</h2>
+              <h2 className="text-2xl font-bold text-white">{t.sitebossIntegrationOptional}</h2>
             </div>
             
             <div className="space-y-4">
@@ -683,7 +685,7 @@ export default function NewTowerPage() {
               
               <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
                 <div className="space-y-1">
-                  <Label htmlFor="sitebossEnabled" className="text-white/80 font-medium">Enable SiteBoss Integration</Label>
+                  <Label htmlFor="sitebossEnabled" className="text-white/80 font-medium">{t.enableSiteboss}</Label>
                   <p className="text-white/60 text-sm">Connect to real SiteBoss monitoring devices</p>
                 </div>
                 <Switch
@@ -739,10 +741,10 @@ export default function NewTowerPage() {
                       disabled={isTestingConnection}
                       className="bg-white/5 border-white/10 text-white hover:bg-white/10"
                     >
-                      {isTestingConnection ? "Testing..." : "Test Connection"}
+                      {isTestingConnection ? t.testing : t.testConnection}
                     </Button>
                     {connectionStatus === "success" && (
-                      <span className="text-green-400 text-sm">✓ Connection successful</span>
+                      <span className="text-green-400 text-sm">✓ {t.connectionSuccess}</span>
                     )}
                     {connectionStatus === "error" && (
                       <span className="text-red-400 text-sm">✗ Connection failed</span>
@@ -899,7 +901,7 @@ export default function NewTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Globe className="h-6 w-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">Data Source Configuration</h2>
+              <h2 className="text-2xl font-bold text-white">{t.analytics}</h2>
             </div>
             
             <div className="space-y-4">
@@ -909,7 +911,7 @@ export default function NewTowerPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="apiEndpointUrl" className="text-white/80">API Endpoint URL (Optional)</Label>
+                  <Label htmlFor="apiEndpointUrl" className="text-white/80">{t.apiEndpointUrlOptional}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="apiEndpointUrl"
@@ -926,19 +928,19 @@ export default function NewTowerPage() {
                       onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8081/api/telemetry/live")}
                       className="whitespace-nowrap"
                     >
-                      Use Simulator
+                      {t.useSimulator}
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey" className="text-white/80">API Key (Optional)</Label>
+                  <Label htmlFor="apiKey" className="text-white/80">{t.apiKeyOptional}</Label>
                   <Input
                     id="apiKey"
                     type="password"
                     value={formData.apiKey}
                     onChange={(e) => handleInputChange("apiKey", e.target.value)}
-                    placeholder="sk_live_abc123def456ghi789"
+                    placeholder={t.enterApiKey}
                     className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
                   />
                 </div>

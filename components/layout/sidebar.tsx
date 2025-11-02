@@ -3,12 +3,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Globe, Radio, BarChart3, Brain, Wrench, FileText, Menu, X, Wifi, Activity, Cloud } from "lucide-react"
+import { Globe, Radio, BarChart3, Brain, Wrench, FileText, Menu, X, Wifi, Activity, Cloud, Monitor } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Globe },
   { name: "Towers", href: "/towers", icon: Radio },
+  { name: "Monitoring", href: "/monitoring", icon: Monitor },
   { name: "Maintenance", href: "/maintenance", icon: Wrench },
   { name: "AI Analytics", href: "/ai-analytics", icon: Brain },
 ]

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { ApiClient } from "@/lib/api-client"
+import { DateRange } from "react-day-picker"
 
 interface HardwareComponent {
   id: string
@@ -179,6 +180,7 @@ export function HardwareManagement({ towerId, components, onComponentsChange }: 
     }
   }
 
+  // Client-side quick filter for small lists
   const filteredComponents = localComponents.filter((component) => {
     if (
       searchQuery &&
@@ -190,6 +192,8 @@ export function HardwareManagement({ towerId, components, onComponentsChange }: 
     if (typeFilter !== "all" && component.type !== typeFilter) return false
     return true
   })
+
+  // Removed server-side filter controls
 
   const handleCreateComponent = async () => {
     console.log("Add Component button clicked!")
@@ -454,6 +458,7 @@ export function HardwareManagement({ towerId, components, onComponentsChange }: 
 
   return (
     <div className="space-y-6">
+      {/* Removed server-side inventory filters as requested */}
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-white">Hardware Components</h3>

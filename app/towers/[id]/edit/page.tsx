@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ApiClient } from "@/lib/api-client"
 import { buildUrl } from "@/lib/config"
 import { motion } from "framer-motion"
+import { useTranslation } from "@/lib/translation-context"
 
 export default function EditTowerPage() {
+  const { t } = useTranslation()
   const params = useParams()
   const router = useRouter()
   const towerId = params.id as string
@@ -104,22 +106,22 @@ export default function EditTowerPage() {
   const testConnection = async () => {
     if (!formData.apiEndpointUrl) {
       setConnectionStatus("error")
-      setConnectionMessage("Please enter an API endpoint URL to test the connection")
+      setConnectionMessage(t.error)
       return
     }
 
     setConnectionStatus("testing")
-    setConnectionMessage("Testing connection...")
+    setConnectionMessage(t.loading)
 
     try {
       const result = await ApiClient.testConnection(formData.apiEndpointUrl, formData.apiKey)
       
       if (result.success) {
         setConnectionStatus("success")
-        setConnectionMessage("Connection successful!")
+        setConnectionMessage(t.success)
       } else {
         setConnectionStatus("error")
-        setConnectionMessage("Connection failed")
+        setConnectionMessage(t.error)
       }
     } catch (error: any) {
       setConnectionStatus("error")
@@ -302,7 +304,7 @@ export default function EditTowerPage() {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">Error Loading Tower</h2>
             <p className="text-white/60 mb-4">{error}</p>
-            <Button onClick={() => router.back()}>Go Back</Button>
+            <Button onClick={() => router.back()}>{t.back}</Button>
           </div>
         </div>
       </GlassMainLayout>
@@ -335,11 +337,11 @@ export default function EditTowerPage() {
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {t.back}
             </Button>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                Edit Tower
+                {t.editTower}
               </h1>
               <p className="text-white/60 text-lg mt-1">
                 Modify {tower.name}
@@ -366,12 +368,12 @@ export default function EditTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Globe className="h-6 w-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Basic Information</h2>
+              <h2 className="text-2xl font-bold text-white">{t.settings}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-white/80">Tower Name *</Label>
+                <Label htmlFor="name" className="text-white/80">{t.towerName} *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -383,7 +385,7 @@ export default function EditTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="status" className="text-white/80">Status *</Label>
+                <Label htmlFor="status" className="text-white/80">{t.statusLabel} *</Label>
                 <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white">
                     <SelectValue />
@@ -398,7 +400,7 @@ export default function EditTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="useCase" className="text-white/80">Use Case *</Label>
+                <Label htmlFor="useCase" className="text-white/80">{t.useCase} *</Label>
                 <Input
                   id="useCase"
                   value={formData.useCase}
@@ -410,7 +412,7 @@ export default function EditTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="region" className="text-white/80">Region *</Label>
+                <Label htmlFor="region" className="text-white/80">{t.region} *</Label>
                 <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white">
                     <SelectValue placeholder="Select region" />
@@ -432,12 +434,12 @@ export default function EditTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <MapPin className="h-6 w-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">Location</h2>
+              <h2 className="text-2xl font-bold text-white">{t.city}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="city" className="text-white/80">City *</Label>
+                <Label htmlFor="city" className="text-white/80">{t.city} *</Label>
                 <Input
                   id="city"
                   value={formData.city}
@@ -449,7 +451,7 @@ export default function EditTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="latitude" className="text-white/80">Latitude *</Label>
+                <Label htmlFor="latitude" className="text-white/80">{t.latitude} *</Label>
                 <Input
                   id="latitude"
                   type="number"
@@ -463,7 +465,7 @@ export default function EditTowerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="longitude" className="text-white/80">Longitude *</Label>
+                <Label htmlFor="longitude" className="text-white/80">{t.longitude} *</Label>
                 <Input
                   id="longitude"
                   type="number"
@@ -482,7 +484,7 @@ export default function EditTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Activity className="h-6 w-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Metrics</h2>
+              <h2 className="text-2xl font-bold text-white">{t.metrics}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -547,12 +549,12 @@ export default function EditTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Settings className="h-6 w-6 text-orange-400" />
-              <h2 className="text-2xl font-bold text-white">Maintenance</h2>
+              <h2 className="text-2xl font-bold text-white">{t.maintenance}</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="lastMaintenance" className="text-white/80">Last Maintenance Date</Label>
+                <Label htmlFor="lastMaintenance" className="text-white/80">{t.lastMaintenanceDate}</Label>
                 <Input
                   id="lastMaintenance"
                   type="date"
@@ -635,7 +637,7 @@ export default function EditTowerPage() {
                       disabled={connectionStatus === "testing"}
                       className="bg-white/5 border-white/10 text-white hover:bg-white/10"
                     >
-                      {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
+                      {connectionStatus === "testing" ? t.loading : "Test Connection"}
                     </Button>
                     {connectionStatus === "success" && (
                       <span className="text-green-400 text-sm">✓ Connection successful</span>
@@ -720,7 +722,7 @@ export default function EditTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Globe className="h-6 w-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">3D Model</h2>
+              <h2 className="text-2xl font-bold text-white">3D</h2>
             </div>
             
             <div className="space-y-4">
@@ -730,7 +732,7 @@ export default function EditTowerPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                      <span className="text-white/80">Current 3D Model:</span>
+                      <span className="text-white/80">3D</span>
                       <span className="text-white font-medium">{tower.model3dPath.split('/').pop()}</span>
                     </div>
                     <Button
@@ -748,7 +750,7 @@ export default function EditTowerPage() {
 
               {/* 3D Model Upload */}
               <div className="space-y-4">
-                <Label className="text-white/80">Upload New 3D Model (Optional)</Label>
+                <Label className="text-white/80">3D</Label>
                 <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-white/40 transition-colors">
                   <input
                     type="file"
@@ -813,7 +815,7 @@ export default function EditTowerPage() {
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <Globe className="h-6 w-6 text-cyan-400" />
-              <h2 className="text-2xl font-bold text-white">Data Source Configuration</h2>
+              <h2 className="text-2xl font-bold text-white">{t.analytics}</h2>
             </div>
             
             <div className="space-y-4">
@@ -823,7 +825,7 @@ export default function EditTowerPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="apiEndpointUrl" className="text-white/80">API Endpoint URL (Optional)</Label>
+                  <Label htmlFor="apiEndpointUrl" className="text-white/80">{t.apiEndpointUrlOptional}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="apiEndpointUrl"
@@ -840,19 +842,19 @@ export default function EditTowerPage() {
                       onClick={() => handleInputChange("apiEndpointUrl", "http://localhost:8081/api/telemetry/live")}
                       className="whitespace-nowrap"
                     >
-                      Use Simulator
+                      {t.useSimulator}
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey" className="text-white/80">API Key (Optional)</Label>
+                  <Label htmlFor="apiKey" className="text-white/80">{t.apiKeyOptional}</Label>
                   <Input
                     id="apiKey"
                     type="password"
                     value={formData.apiKey}
                     onChange={(e) => handleInputChange("apiKey", e.target.value)}
-                    placeholder="Enter API key if required"
+                    placeholder={t.enterApiKey}
                     className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
                   />
                 </div>
@@ -873,7 +875,7 @@ export default function EditTowerPage() {
                     ) : (
                       <Globe className="w-4 h-4 mr-2" />
                     )}
-                    {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
+                    {connectionStatus === "testing" ? t.loading : t.testConnection}
                   </Button>
                   
                   {connectionMessage && (
@@ -912,7 +914,7 @@ export default function EditTowerPage() {
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? t.loading : t.save}
             </Button>
           </div>
         </motion.form>

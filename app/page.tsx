@@ -16,8 +16,10 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { useTowers } from "@/lib/towers-context"
 import { ApiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/lib/translation-context"
 
 function DashboardContent() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { getTowerById } = useTowers()
   const [towers, setTowers] = useState<any[]>([])
@@ -187,7 +189,7 @@ function DashboardContent() {
             className="cursor-pointer transform transition-all duration-300 hover:scale-105"
           >
             <GlassMetricCard
-              title="Total Towers"
+              title={`Total ${t.towers}`}
               value={totalTowers}
               icon={Globe}
               status={cardFilter === "total" ? "success" : "neutral"}
@@ -202,7 +204,7 @@ function DashboardContent() {
             className="cursor-pointer transform transition-all duration-300 hover:scale-105"
           >
             <GlassMetricCard
-              title="Online Towers"
+              title={`${t.online} ${t.towers}`}
               value={onlineTowers}
               unit=""
               icon={Radio}
@@ -218,7 +220,7 @@ function DashboardContent() {
             className="cursor-pointer transform transition-all duration-300 hover:scale-105"
           >
             <GlassMetricCard 
-              title="Warning Towers" 
+              title={`Warning ${t.towers}`} 
               value={warningTowers} 
               icon={AlertTriangle} 
               status={cardFilter === "warning" ? "warning" : "neutral"} 
@@ -231,7 +233,7 @@ function DashboardContent() {
             className="cursor-pointer transform transition-all duration-300 hover:scale-105"
           >
             <GlassMetricCard
-              title="Critical Towers"
+              title={`Critical ${t.towers}`}
               value={criticalTowers}
               icon={AlertTriangle}
               status={cardFilter === "critical" ? "error" : "neutral"}

@@ -24,7 +24,9 @@ import {
   Droplets,
   Signal,
   Eye,
-  EyeOff
+  EyeOff,
+  BarChart3,
+  ExternalLink
 } from 'lucide-react'
 
 interface SiteBossData {
@@ -81,9 +83,10 @@ interface SiteBossDataDisplayProps {
     password: string
     enabled: boolean
   }
+  towerId?: string | number
 }
 
-export function SiteBossDataDisplay({ config }: SiteBossDataDisplayProps) {
+export function SiteBossDataDisplay({ config, towerId }: SiteBossDataDisplayProps) {
   const [data, setData] = useState<SiteBossData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -269,7 +272,7 @@ export function SiteBossDataDisplay({ config }: SiteBossDataDisplayProps) {
               <Activity className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">SiteBoss Real-Time Data</h3>
+              <h3 className="text-lg font-bold text-white">Real-Time Data</h3>
               <p className="text-sm text-white/60">
                 Auto-updating every 30s
                 {deviceTimeStr ? ` • Device time: ${deviceTimeStr}` : ''}
@@ -364,11 +367,30 @@ export function SiteBossDataDisplay({ config }: SiteBossDataDisplayProps) {
         <div className="space-y-6">
           {/* Site Information */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <MapPin className="w-5 h-5 text-green-400" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <MapPin className="w-5 h-5 text-green-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Site Information</h3>
               </div>
-              <h3 className="text-lg font-bold text-white">Site Information</h3>
+              {towerId && (
+                <Button
+                  onClick={() => {
+                    // Grafana dashboard URL format: /d/{uid}/{slug}?var-{variable}={value}
+                    // Using the actual UID from Grafana (as seen in logs)
+                    const dashboardUid = 'fc8bd51d-d2cc-4e52-aa7a-55271a2b6f46'
+                    const grafanaUrl = `http://localhost:3001/d/${dashboardUid}/5sky-complete-monitoring-dashboard?var-towerId=${towerId}`
+                    window.open(grafanaUrl, '_blank', 'noopener,noreferrer')
+                  }}
+                  variant="outline"
+                  className="bg-blue-600/20 hover:bg-blue-600/30 border-blue-500/40 text-blue-300 hover:text-blue-200"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Open Grafana
+                  <ExternalLink className="w-3 h-3 ml-2" />
+                </Button>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-colors">
